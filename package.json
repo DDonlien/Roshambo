@@ -4,8 +4,12 @@
   "version": "0.0.2",
   "type": "module",
   "scripts": {
-    "dev": "python3 -m http.server 5173",
-    "build": "tsc --noEmit",
-    "preview": "python3 -m http.server 4173"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0"
   }
 }

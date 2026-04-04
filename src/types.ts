@@ -8,6 +8,7 @@ export enum RPS {
 export interface Card {
   id: string;
   symbols: [RPS, RPS, RPS];
+  isFlipped?: boolean;
 }
 
 export interface MatrixTheme {
@@ -27,13 +28,17 @@ export interface ShiftResult {
   pushedOutSymbols: [RPS, RPS, RPS];
 }
 
+export type CompareResult = 'WIN' | 'LOSE' | 'DUAL';
+
 export interface ResolutionResult {
   won: boolean;
+  result: CompareResult;
   oldTheme: MatrixTheme;
   newTheme: MatrixTheme;
   pushedOutCard: Card | null;
   insertedCardId: string;
   scoreDelta: number;
+  newGrid?: RPS[][];
 }
 
 export interface GameConfig {
@@ -44,9 +49,10 @@ export interface GameState {
   matrix: Matrix;
   hand: Card[];
   currentScore: number;
-  targetScore: number;
-  blind: number;
+  shufflesLeft: number;
+  dealsLeft: number;
   selectedCardId: string | null;
   status: 'PLAYING' | 'GAME_OVER';
   lastResolution: ResolutionResult | null;
+  preview: ResolutionResult | null;
 }

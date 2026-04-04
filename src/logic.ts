@@ -1,4 +1,4 @@
-import { Card, InsertEdge, MatrixTheme, RPS, ShiftResult } from './types';
+import { Card, InsertEdge, MatrixTheme, RPS, ShiftResult, CompareResult } from './types';
 
 const ELEMENT_PRIORITY: readonly RPS[] = [RPS.ROCK, RPS.SCISSORS, RPS.PAPER];
 
@@ -58,16 +58,9 @@ function cloneGrid(grid: RPS[][]): RPS[][] {
 export function shiftMatrix(oldGrid: RPS[][], insertEdge: InsertEdge, insertCard: Card): ShiftResult {
   const grid = cloneGrid(oldGrid);
 
-  if (insertEdge === 'RIGHT') {
-    const pushedOutSymbols: [RPS, RPS, RPS] = [grid[0][0], grid[1][0], grid[2][0]];
-    for (let row = 0; row < 3; row += 1) {
-      grid[row][0] = grid[row][1];
-      grid[row][1] = grid[row][2];
-      grid[row][2] = insertCard.symbols[row];
-    }
-    return { newGrid: grid, pushedOutSymbols };
-  }
-
+  // In the UI, cards have symbols [0, 1, 2].
+  // When inserting LEFT: card is vertical, symbol[0] is top, symbol[2] is bottom.
+  // We want to push the entire column.
   if (insertEdge === 'LEFT') {
     const pushedOutSymbols: [RPS, RPS, RPS] = [grid[0][2], grid[1][2], grid[2][2]];
     for (let row = 0; row < 3; row += 1) {
@@ -78,6 +71,21 @@ export function shiftMatrix(oldGrid: RPS[][], insertEdge: InsertEdge, insertCard
     return { newGrid: grid, pushedOutSymbols };
   }
 
+  // When inserting RIGHT: card is vertical, symbol[0] is top, symbol[2] is bottom.
+  if (insertEdge === 'RIGHT') {
+    const pushedOutSymbols: [RPS, RPS, RPS] = [grid[0][0], grid[1][0], grid[2][0]];
+    for (let row = 0; row < 3; row += 1) {
+      grid[row][0] = grid[row][1];
+      grid[row][1] = grid[row][2];
+      grid[row][2] = insertCard.symbols[row];
+    }
+    return { newGrid: grid, pushedOutSymbols };
+  }
+
+  // When inserting TOP: card is rotated -90deg.
+  // Visual top of the original card (symbol[0]) is now pointing left.
+  // Visual bottom of the original card (symbol[2]) is now pointing right.
+  // So we match col index to symbol index.
   if (insertEdge === 'TOP') {
     const pushedOutSymbols: [RPS, RPS, RPS] = [grid[2][0], grid[2][1], grid[2][2]];
     for (let col = 0; col < 3; col += 1) {
@@ -88,6 +96,8 @@ export function shiftMatrix(oldGrid: RPS[][], insertEdge: InsertEdge, insertCard
     return { newGrid: grid, pushedOutSymbols };
   }
 
+  // When inserting BOTTOM: card is rotated -90deg.
+  // Visual top (symbol[0]) is left, bottom (symbol[2]) is right.
   const pushedOutSymbols: [RPS, RPS, RPS] = [grid[0][0], grid[0][1], grid[0][2]];
   for (let col = 0; col < 3; col += 1) {
     grid[0][col] = grid[1][col];
@@ -97,18 +107,37 @@ export function shiftMatrix(oldGrid: RPS[][], insertEdge: InsertEdge, insertCard
   return { newGrid: grid, pushedOutSymbols };
 }
 
-export function compareMatrix(newTheme: MatrixTheme, oldTheme: MatrixTheme): boolean {
+export function compareMatrix(newTheme: MatrixTheme, oldTheme: MatrixTheme): CompareResult {
   if (WIN_MAP[newTheme.element] === oldTheme.element) {
-    return true;
+    return 'WIN';
   }
 
   if (WIN_MAP[oldTheme.element] === newTheme.element) {
-    return false;
+    return 'LOSE';
   }
 
   if (newTheme.power > oldTheme.power) {
-    return true;
+    return 'WIN';
   }
 
-  return false;
+  if (newTheme.power < oldTheme.power) {
+    return 'LOSE';
+  }
+
+  return 'DUAL';
+}
+
+const SCORE_WEIGHTS: Record<RPS, number> = {
+  [RPS.ROCK]: 4,
+  [RPS.SCISSORS]: 3,
+  [RPS.PAPER]: 1,
+  [RPS.BLANK]: 0
+};
+
+export function calculateScore(result: CompareResult, oldTheme: MatrixTheme): number {
+  if (result === 'LOSE' || result === 'DUAL') return 0;
+  
+  const baseScore = 5;
+  const extraScore = oldTheme.power * SCORE_WEIGHTS[oldTheme.element];
+  return baseScore + extraScore;
 }
