@@ -16,33 +16,43 @@ const SCORE_WEIGHTS: Record<RPS, number> = {
 
 export interface LaneResult {
   newGrid: RPS[][];
-  totalScore: number;
+  scoreDelta: number;
   penalty: number;
   laneScores: number[];
   replacedCells: { r: number; c: number }[];
   shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[];
 }
 
-/**
- * Shifts a row or column in the grid with loopback.
- */
 function shiftLane(grid: RPS[][], index: number, type: 'row' | 'col', direction: 1 | -1): void {
+  const size = grid.length;
   if (type === 'row') {
     const row = grid[index];
     if (direction === 1) {
-      const last = row[2];
-      row[2] = row[1]; row[1] = row[0]; row[0] = last;
+      const last = row[size - 1];
+      for (let col = size - 1; col > 0; col -= 1) {
+        row[col] = row[col - 1];
+      }
+      row[0] = last;
     } else {
       const first = row[0];
-      row[0] = row[1]; row[1] = row[2]; row[2] = first;
+      for (let col = 0; col < size - 1; col += 1) {
+        row[col] = row[col + 1];
+      }
+      row[size - 1] = first;
     }
   } else {
     if (direction === 1) {
-      const last = grid[2][index];
-      grid[2][index] = grid[1][index]; grid[1][index] = grid[0][index]; grid[0][index] = last;
+      const last = grid[size - 1][index];
+      for (let row = size - 1; row > 0; row -= 1) {
+        grid[row][index] = grid[row - 1][index];
+      }
+      grid[0][index] = last;
     } else {
       const first = grid[0][index];
-      grid[0][index] = grid[1][index]; grid[1][index] = grid[2][index]; grid[2][index] = first;
+      for (let row = 0; row < size - 1; row += 1) {
+        grid[row][index] = grid[row + 1][index];
+      }
+      grid[size - 1][index] = first;
     }
   }
 }
@@ -52,29 +62,28 @@ export function executeLaneClash(
   edge: InsertEdge,
   card: Card
 ): LaneResult {
-  const newGrid = currentGrid.map(row => [...row]);
+  const newGrid = currentGrid.map((row) => [...row]);
+  const size = newGrid.length;
+  const laneCount = Math.min(size, card.symbols.length);
   let totalScore = 0;
   let penalty = 0;
-  const laneScores: number[] = [0, 0, 0];
+  const laneScores: number[] = Array.from({ length: laneCount }, () => 0);
   const replacedCells: { r: number; c: number }[] = [];
   const shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[] = [];
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < laneCount; i += 1) {
     const attacker = card.symbols[i];
     let r = 0, c = 0, dr = 0, dc = 0;
 
     if (edge === 'TOP') { r = 0; c = i; dr = 1; dc = 0; }
-    else if (edge === 'BOTTOM') { r = 2; c = i; dr = -1; dc = 0; }
+    else if (edge === 'BOTTOM') { r = size - 1; c = i; dr = -1; dc = 0; }
     else if (edge === 'LEFT') { r = i; c = 0; dr = 0; dc = 1; }
-    else if (edge === 'RIGHT') { r = i; c = 2; dr = 0; dc = -1; }
+    else if (edge === 'RIGHT') { r = i; c = size - 1; dr = 0; dc = -1; }
 
     const defender = newGrid[r][c];
-    
-    // NEW RULE: BLANK attacker loses to ANY non-BLANK defender.
     const attackerLoses = defender !== RPS.BLANK && (attacker === RPS.BLANK || WIN_MAP[defender] === attacker);
 
     if (attackerLoses) {
-      // PENALTY: Use the weight of the ATTACKER card block
       const attackerVal = Number(SCORE_WEIGHTS[attacker]) || 0;
       penalty += attackerVal;
 
@@ -88,7 +97,7 @@ export function executeLaneClash(
         shiftedLanes.push({ index: i, type: 'col', direction: shiftDir });
       }
     } else if (attacker !== RPS.BLANK) {
-      for (let step = 0; step < 3; step++) {
+      for (let step = 0; step < size; step += 1) {
         const currentDefender = newGrid[r][c];
         const attackerWins = (WIN_MAP[attacker] === currentDefender) || (currentDefender === RPS.BLANK);
 
@@ -99,7 +108,7 @@ export function executeLaneClash(
           newGrid[r][c] = attacker;
           replacedCells.push({ r, c });
           r += dr; c += dc;
-          if (r < 0 || r > 2 || c < 0 || c > 2) break;
+          if (r < 0 || r > size - 1 || c < 0 || c > size - 1) break;
         } else {
           break;
         }
@@ -117,6 +126,6 @@ export function executeLaneClash(
   };
 }
 
-export function createEmptyGrid(): RPS[][] {
-  return Array.from({ length: 3 }, () => Array.from({ length: 3 }, () => RPS.BLANK));
+export function createEmptyGrid(size: number): RPS[][] {
+  return Array.from({ length: size }, () => Array.from({ length: size }, () => RPS.BLANK));
 }

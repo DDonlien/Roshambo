@@ -5,13 +5,16 @@ export enum RPS {
   BLANK = 'BLANK'
 }
 
+export type LevelIcon = 'Rock' | 'Paper' | 'Scissors';
+
 export interface Card {
   id: string;
-  symbols: [RPS, RPS, RPS];
+  symbols: RPS[];
   isFlipped?: boolean;
 }
 
 export interface Matrix {
+  size: number;
   grid: RPS[][];
 }
 
@@ -28,12 +31,19 @@ export interface ClashResult {
 }
 
 export interface GameConfig {
-  initialTargetScore: number;
 }
 
 export interface LevelConfig {
   level: number;
   goal: number;
+  name: string;
+  matrixSize: number;
+  icon: LevelIcon;
+}
+
+export interface InitialConfig {
+  chips: number;
+  interestRate: number;
 }
 
 export interface GameState {
@@ -42,8 +52,11 @@ export interface GameState {
   deck: Card[];
   discardPile: Card[];
   currentScore: number;
-  gold: number;
+  chips: number;
+  interestRate: number;
   currentLevel: number;
+  levelName: string;
+  levelIcon: LevelIcon;
   levelGoal: number;
   shufflesLeft: number;
   dealsLeft: number;
