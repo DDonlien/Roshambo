@@ -342,6 +342,10 @@ export class GameUI {
       dz.className = `drop-zone drop-zone-${edge.toLowerCase()}`;
       dz.setAttribute('data-edge', edge);
       
+      const visual = document.createElement('div');
+      visual.className = 'drop-zone-visual';
+      dz.appendChild(visual);
+      
       dz.addEventListener('mouseenter', (event) => {
         this.updateEdgePreview(edge, event, dz);
       });
@@ -954,7 +958,6 @@ export class GameUI {
     EDGE_ORDER.forEach(edge => {
       const dz = this.matrixWrapperElement?.querySelector(`.drop-zone-${edge.toLowerCase()}`) as HTMLElement;
       if (!dz) return;
-      dz.innerHTML = '';
     });
 
     if (this.previewBoxElement) {
