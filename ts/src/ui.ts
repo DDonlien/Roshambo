@@ -104,30 +104,66 @@ const SCORE_WEIGHTS: Record<RPS, number> = {
   [RPS.BLANK]: 0
 };
 
+let blockAssetMap: Record<string, string> = {
+  'ROCK': '4',
+  'SCISSORS': '3',
+  'PAPER': '1',
+  'BLANK': '0'
+};
+
+let cardAssetMap: Record<string, string> = {
+  'ROCK': '4',
+  'SCISSORS': '3',
+  'PAPER': '1',
+  'BLANK': '0'
+};
+
+export async function loadAssetMaps(): Promise<void> {
+  try {
+    const [blockRes, cardRes] = await Promise.all([
+      fetch('./blockasset.csv'),
+      fetch('./cardasset.csv')
+    ]);
+    
+    if (blockRes.ok) {
+      const text = await blockRes.text();
+      text.split('\n').forEach(line => {
+        const [k, v] = line.trim().split(',');
+        if (k && v) blockAssetMap[k] = v;
+      });
+    }
+    
+    if (cardRes.ok) {
+      const text = await cardRes.text();
+      text.split('\n').forEach(line => {
+        const [k, v] = line.trim().split(',');
+        if (k && v) cardAssetMap[k] = v;
+      });
+    }
+  } catch (e) {
+    console.warn('Failed to load asset maps, using defaults', e);
+  }
+}
+
 function getCardFullAsset(card: Card): string {
-  const map: Record<string, string> = {
-    'ROCK': '0',
-    'SCISSORS': '1',
-    'PAPER': '3',
-    'BLANK': '4'
-  };
   // Always get the base un-flipped symbols to map to the single physical asset file
   const baseSymbols = card.isFlipped ? [...card.symbols].reverse() : card.symbols;
   
   // The symbols array is top-to-bottom.
   // BUT the image filenames are named bottom-to-top!
-  const key = [...baseSymbols].reverse().map(s => map[s]).join('');
+  const key = [...baseSymbols].reverse().map(s => cardAssetMap[s] || '0').join('');
   return `./Sketch/CardType=${key}.png`;
 }
 
 function blockAsset(symbol: RPS): string {
-  const nameMap: Record<RPS, string> = {
-    [RPS.ROCK]: 'Rock',
-    [RPS.SCISSORS]: 'Scissors',
-    [RPS.PAPER]: 'Paper',
-    [RPS.BLANK]: 'Blank'
+  const nameMap: Record<string, string> = {
+    '4': 'Rock',
+    '3': 'Scissors',
+    '1': 'Paper',
+    '0': 'Blank'
   };
-  return `./Sketch/BlockType=${nameMap[symbol]}.png`;
+  const val = blockAssetMap[symbol] || '0';
+  return `./Sketch/BlockType=${nameMap[val] || 'Blank'}.png`;
 }
 
 function iconAsset(icon: LevelIcon): string {

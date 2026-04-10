@@ -1,5 +1,6 @@
 import { GameStore } from './state';
-import { GameUI } from './ui';
+import { GameUI, loadAssetMaps } from './ui';
+import './style.css';
 
 const root = document.querySelector<HTMLDivElement>('#app');
 
@@ -8,6 +9,7 @@ if (!root) {
 }
 
 void (async () => {
+  await loadAssetMaps();
   const store = new GameStore();
   await store.initialize();
   const ui = new GameUI(store, root);
