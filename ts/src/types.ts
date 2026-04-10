@@ -7,7 +7,7 @@ export enum RPS {
 
 export const CARD_LENGTH = 3;
 
-export type LevelIcon = 'Rock' | 'Paper' | 'Scissors';
+export type LevelIcon = 'pocket' | 'rubik' | 'master';
 
 export interface Card {
   id: string;
@@ -28,6 +28,8 @@ export interface ClashResult {
   penalty: number;
   laneScores: number[];
   replacedCells: { r: number; c: number }[];
+  failedCells?: { r: number; c: number }[]; // Cells where attacker lost inside the matrix
+  tieCells?: { r: number; c: number }[];    // Cells where attacker tied
   insertedCardId: string;
   attachmentOffset: number;
   shiftedLanes?: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[];
@@ -47,6 +49,8 @@ export interface LevelConfig {
 export interface InitialConfig {
   chips: number;
   interestRate: number;
+  dealsLeft: number;
+  shufflesLeft: number;
 }
 
 export interface GameState {

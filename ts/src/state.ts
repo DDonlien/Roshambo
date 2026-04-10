@@ -4,14 +4,16 @@ import { CARD_LENGTH, Card, ClashResult, GameConfig, GameState, InitialConfig, I
 const SYMBOL_POOL: readonly RPS[] = [RPS.ROCK, RPS.SCISSORS, RPS.PAPER, RPS.BLANK];
 
 const DEFAULT_LEVELS: LevelConfig[] = [
-  { level: 1, goal: 10, name: 'Pocket', matrixSize: 2, icon: 'Paper' },
-  { level: 2, goal: 30, name: 'Rubik', matrixSize: 3, icon: 'Scissors' },
-  { level: 3, goal: 80, name: 'Master', matrixSize: 4, icon: 'Rock' }
+  { level: 1, goal: 10, name: 'Pocket', matrixSize: 2, icon: 'pocket' },
+  { level: 2, goal: 30, name: 'Rubik', matrixSize: 3, icon: 'rubik' },
+  { level: 3, goal: 80, name: 'Master', matrixSize: 4, icon: 'master' }
 ];
 
 const DEFAULT_INITIAL_CONFIG: InitialConfig = {
   chips: 10,
-  interestRate: 0.2
+  interestRate: 2,
+  dealsLeft: 4,
+  shufflesLeft: 4
 };
 
 function randomId(): string {
@@ -83,7 +85,11 @@ function createDeck(type: number): Card[] {
 export class GameStore {
   private state: GameState;
   private levelConfigs: LevelConfig[] = DEFAULT_LEVELS;
-  private initialConfig: InitialConfig = DEFAULT_INITIAL_CONFIG;
+  private initialConfigs: Record<number, InitialConfig> = {
+    1: { chips: 10, interestRate: 2, dealsLeft: 4, shufflesLeft: 4 },
+    2: { chips: 10, interestRate: 2, dealsLeft: 4, shufflesLeft: 4 },
+    3: { chips: 10, interestRate: 2, dealsLeft: 4, shufflesLeft: 4 }
+  };
   private selectedDeckType = 1;
   private lastPreviewEdge: InsertEdge | null = null;
   private lastPreviewOffset = 0;
@@ -100,6 +106,7 @@ export class GameStore {
 
   private createInitialState(): GameState {
     const firstLevel = this.levelConfigs[0] ?? DEFAULT_LEVELS[0];
+    const conf = this.initialConfigs[this.selectedDeckType] || this.initialConfigs[1];
 
     return {
       matrix: {
@@ -110,14 +117,14 @@ export class GameStore {
       deck: [],
       discardPile: [],
       currentScore: 0,
-      chips: this.initialConfig.chips,
-      interestRate: this.initialConfig.interestRate,
+      chips: conf.chips,
+      interestRate: conf.interestRate,
       currentLevel: 1,
       levelName: firstLevel.name,
       levelIcon: firstLevel.icon,
       levelGoal: firstLevel.goal,
-      shufflesLeft: 4,
-      dealsLeft: 4,
+      shufflesLeft: conf.shufflesLeft,
+      dealsLeft: conf.dealsLeft,
       selectedCardIds: [],
       status: 'CHOOSE_DECK',
       lastClash: null,
@@ -198,16 +205,25 @@ export class GameStore {
       const response = await fetch('/initial.csv');
       const text = await response.text();
       const lines = text.trim().split('\n').filter(Boolean);
-      if (lines.length < 2) return;
+      
+      const parsed: Record<string, number[]> = {};
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(s => s.trim());
+        const key = cols[0].toLowerCase();
+        parsed[key] = [Number(cols[1]), Number(cols[2]), Number(cols[3])];
+      }
 
-      const values = lines[1].split(',');
-      const chips = Number(values[0]);
-      const interestRate = Number(values[1]);
-
-      this.initialConfig = {
-        chips: Number.isFinite(chips) ? chips : DEFAULT_INITIAL_CONFIG.chips,
-        interestRate: Number.isFinite(interestRate) ? interestRate : DEFAULT_INITIAL_CONFIG.interestRate
-      };
+      if (parsed['chips']) {
+        for (let type of [1, 2, 3]) {
+          const idx = type - 1;
+          this.initialConfigs[type] = {
+            chips: Number.isFinite(parsed['chips'][idx]) ? parsed['chips'][idx] : DEFAULT_INITIAL_CONFIG.chips,
+            interestRate: Number.isFinite(parsed['interest'][idx]) ? parsed['interest'][idx] : DEFAULT_INITIAL_CONFIG.interestRate,
+            dealsLeft: Number.isFinite(parsed['deal'][idx]) ? parsed['deal'][idx] : DEFAULT_INITIAL_CONFIG.dealsLeft,
+            shufflesLeft: Number.isFinite(parsed['shuffle'][idx]) ? parsed['shuffle'][idx] : DEFAULT_INITIAL_CONFIG.shufflesLeft
+          };
+        }
+      }
     } catch (error) {
       console.warn('Could not load initial.csv, using defaults', error);
     }
@@ -261,12 +277,10 @@ export class GameStore {
       if (card.id !== lastSelected) return card;
       return { ...card, symbols: [...card.symbols].reverse(), isFlipped: !card.isFlipped };
     });
-    if (this.state.preview) {
-      const edge = this.lastPreviewEdge;
-      if (edge) {
-        this.lastPreviewEdge = null;
-        this.updatePreview(edge, this.lastPreviewPointerRatio);
-      }
+    const edge = this.lastPreviewEdge;
+    if (edge) {
+      this.lastPreviewEdge = null;
+      this.updatePreview(edge, this.lastPreviewPointerRatio);
     }
   }
 
@@ -335,8 +349,11 @@ export class GameStore {
     if (this.state.status !== 'LEVEL_WON') return;
     this.applyLevelConfig(this.state.currentLevel + 1);
     this.state.currentScore = 0;
-    this.state.shufflesLeft = 4;
-    this.state.dealsLeft = 4;
+    
+    const conf = this.initialConfigs[this.selectedDeckType] || this.initialConfigs[1];
+    this.state.shufflesLeft = conf.shufflesLeft;
+    this.state.dealsLeft = conf.dealsLeft;
+    
     this.state.status = 'PLAYING';
     this.state.selectedCardIds = [];
     this.state.preview = null;
@@ -363,37 +380,42 @@ export class GameStore {
   }
 
   dealHand(): void {
-    if (this.state.status !== 'PLAYING' || this.state.dealsLeft <= 0) return;
-    const lastSelected = this.state.selectedCardIds[this.state.selectedCardIds.length - 1];
-
-    if (lastSelected && this.state.deck.length > 0) {
-      const handIdx = this.state.hand.findIndex((card) => card.id === lastSelected);
-      const deckIdx = Math.floor(Math.random() * this.state.deck.length);
-
-      const cardFromHand = this.state.hand[handIdx];
-      const cardFromDeck = this.state.deck[deckIdx];
-
-      this.state.hand[handIdx] = cardFromDeck;
-      this.state.deck[deckIdx] = cardFromHand;
-
-      this.state.dealsLeft -= 1;
-      this.state.selectedCardIds = [];
-      this.state.preview = null;
-      this.lastPreviewEdge = null;
-      this.lastPreviewOffset = 0;
-      this.lastPreviewPointerRatio = 0.5;
-    } else if (this.state.hand.length < 5 && this.state.deck.length > 0) {
-      const drawn = this.state.deck.shift();
-      if (!drawn) return;
-      this.state.hand.push(drawn);
-      this.state.dealsLeft -= 1;
+    if (this.state.status !== 'PLAYING' || this.state.dealsLeft <= 0 || this.state.deck.length === 0) return;
+    
+    let cardsToSwap = this.state.hand.filter((card) => this.state.selectedCardIds.includes(card.id));
+    if (cardsToSwap.length === 0) {
+      cardsToSwap = [...this.state.hand];
     }
+
+    const swapCount = Math.min(cardsToSwap.length, this.state.deck.length);
+    if (swapCount === 0) return;
+
+    for (let i = 0; i < swapCount; i++) {
+      const cardToSwap = cardsToSwap[i];
+      const handIdx = this.state.hand.findIndex((c) => c.id === cardToSwap.id);
+      
+      const deckIdx = Math.floor(Math.random() * this.state.deck.length);
+      const cardFromDeck = this.state.deck[deckIdx];
+      
+      this.state.hand[handIdx] = cardFromDeck;
+      this.state.deck.splice(deckIdx, 1);
+      this.state.discardPile.push(cardToSwap);
+    }
+
+    this.state.dealsLeft -= 1;
+    this.state.selectedCardIds = [];
+    this.state.preview = null;
+    this.lastPreviewEdge = null;
+    this.lastPreviewOffset = 0;
+    this.lastPreviewPointerRatio = 0.5;
   }
 
   private resolveRoundEnd(): void {
-    if (this.state.status === 'PLAYING' && this.state.hand.length === 0 && this.state.deck.length === 0) {
-      this.state.status = 'GAME_OVER';
-      this.state.selectedCardIds = [];
+    if (this.state.status === 'PLAYING' && this.state.hand.length === 0) {
+      if (this.state.currentScore < this.state.levelGoal) {
+        this.state.status = 'GAME_OVER';
+        this.state.selectedCardIds = [];
+      }
     }
   }
 

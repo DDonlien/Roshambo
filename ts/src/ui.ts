@@ -2,6 +2,99 @@ import { GameStore } from './state';
 import { CARD_LENGTH, Card, GameState, InsertEdge, LevelIcon, RPS } from './types';
 import { gsap } from 'gsap';
 
+type Lang = 'EN' | 'ZH' | 'ZH_TW' | 'JA';
+let currentLang: Lang = 'EN';
+
+const LANG_DISPLAY: Record<Lang, string> = {
+  EN: 'EN',
+  ZH: '简',
+  ZH_TW: '繁',
+  JA: '日'
+};
+
+const I18N = {
+  EN: {
+    STAGE: 'STAGE',
+    SCORE: 'SCORE',
+    CHIPS: 'CHIPS',
+    SHUFFLE_MATRIX: 'SHUFFLE MATRIX',
+    DEAL_CARD: 'DEAL CARD',
+    DECK: 'DECK',
+    WASTED: 'WASTED',
+    END: 'END',
+    ROTATE: 'Rotate',
+    POCKET: 'Pocket',
+    RUBIK: 'Rubik',
+    MASTER: 'Master',
+    CHOOSE_DECK: 'Choose your deck',
+    LEVEL_WON: 'Level Cleared!',
+    GAME_OVER: 'Game Over',
+    WIN: 'You Win!',
+    NEXT_LEVEL: 'Next Level',
+    RESTART: 'Restart Game'
+  },
+  ZH: {
+    STAGE: '关卡',
+    SCORE: '分数',
+    CHIPS: '筹码',
+    SHUFFLE_MATRIX: '矩阵洗牌',
+    DEAL_CARD: '替换手牌',
+    DECK: '牌库',
+    WASTED: '弃牌堆',
+    END: '结束游戏',
+    ROTATE: '翻转',
+    POCKET: 'Pocket',
+    RUBIK: 'Rubik',
+    MASTER: 'Master',
+    CHOOSE_DECK: '选择牌组',
+    LEVEL_WON: '关卡完成！',
+    GAME_OVER: '游戏结束',
+    WIN: '你赢了！',
+    NEXT_LEVEL: '下一关',
+    RESTART: '重新开始'
+  },
+  ZH_TW: {
+    STAGE: '關卡',
+    SCORE: '分數',
+    CHIPS: '籌碼',
+    SHUFFLE_MATRIX: '矩陣洗牌',
+    DEAL_CARD: '替換手牌',
+    DECK: '牌庫',
+    WASTED: '棄牌堆',
+    END: '結束遊戲',
+    ROTATE: '翻轉',
+    POCKET: 'Pocket',
+    RUBIK: 'Rubik',
+    MASTER: 'Master',
+    CHOOSE_DECK: '選擇牌組',
+    LEVEL_WON: '關卡完成！',
+    GAME_OVER: '遊戲結束',
+    WIN: '你贏了！',
+    NEXT_LEVEL: '下一關',
+    RESTART: '重新開始'
+  },
+  JA: {
+    STAGE: 'ステージ',
+    SCORE: 'スコア',
+    CHIPS: 'チップ',
+    SHUFFLE_MATRIX: 'シャッフル',
+    DEAL_CARD: 'カードを配る',
+    DECK: '山札',
+    WASTED: '捨て札',
+    END: 'ゲーム終了',
+    ROTATE: '回転',
+    POCKET: 'Pocket',
+    RUBIK: 'Rubik',
+    MASTER: 'Master',
+    CHOOSE_DECK: 'デッキを選択',
+    LEVEL_WON: 'ステージクリア！',
+    GAME_OVER: 'ゲームオーバー',
+    WIN: 'クリア！',
+    NEXT_LEVEL: '次のステージ',
+    RESTART: 'リスタート'
+  }
+};
+
 const EDGE_ORDER: readonly InsertEdge[] = ['TOP', 'BOTTOM', 'LEFT', 'RIGHT'];
 
 const SCORE_WEIGHTS: Record<RPS, number> = {
@@ -22,7 +115,7 @@ function blockAsset(symbol: RPS): string {
 }
 
 function iconAsset(icon: LevelIcon): string {
-  return `Sketch/IconType=${icon}.png`;
+  return `Sketch/icon_${icon}.png`;
 }
 
 function cardClassName(isHandCard: boolean): string {
@@ -133,15 +226,26 @@ export class GameUI {
     };
   }
 
-  private isInLeftReturnZone(): boolean {
-    if (!this.handElement) {
-      return false;
+  private isInsideSafeZone(): boolean {
+    const sidebar = document.querySelector('.sidebar');
+    const bottomArea = document.querySelector('.bottom-area');
+    
+    if (sidebar) {
+      const sidebarRect = sidebar.getBoundingClientRect();
+      if (this.mouseX <= sidebarRect.right) {
+        return true;
+      }
     }
-
-    const handRect = this.handElement.getBoundingClientRect();
-    return this.mouseX < handRect.left - 40
-      && this.mouseY >= handRect.top - 60
-      && this.mouseY <= handRect.bottom + 60;
+    
+    if (bottomArea) {
+      const bottomRect = bottomArea.getBoundingClientRect();
+      // Added a slight buffer (e.g., 20px) above the bottom area
+      if (this.mouseY >= bottomRect.top - 20) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   private initialRender(): void {
@@ -175,28 +279,24 @@ export class GameUI {
     const sidebar = document.createElement('div');
     sidebar.className = 'sidebar';
     sidebar.innerHTML = `
-      <div class="sidebar-title">Roshambo!</div>
+      <div class="sidebar-header">
+        <div class="sidebar-title">Roshambo!</div>
+        <button class="btn-lang" id="ui-btn-lang" title="Switch Language">${LANG_DISPLAY[currentLang]}</button>
+      </div>
       <div class="stage-box">
-        <img id="ui-level-icon" class="stage-icon" src="${iconAsset('Paper')}" alt="stage">
+        <img id="ui-level-icon" class="stage-icon" src="${iconAsset('pocket')}" alt="stage">
         <div class="stage-copy">
-          <span class="stage-label">STAGE</span>
+          <span class="stage-label" id="ui-level">STAGE 1/3</span>
           <span class="stage-name" id="ui-level-name">Pocket</span>
         </div>
+        <div class="stage-goal" id="ui-goal">10</div>
       </div>
       <div class="score-box">
-        <span class="label">LEVEL</span>
-        <span class="value" id="ui-level">1/3</span>
-      </div>
-      <div class="score-box">
-        <span class="label">GOAL</span>
-        <span class="value" id="ui-goal">100</span>
-      </div>
-      <div class="score-box">
-        <span class="label">SCORE</span>
+        <span class="label" id="ui-score-label">SCORE</span>
         <span class="value" id="ui-score">0</span>
       </div>
       <div class="score-box chips-box" id="ui-chips-box">
-        <span class="label chips-label">CHIPS</span>
+        <span class="label chips-label" id="ui-chips-label">CHIPS</span>
         <div class="chips-value-wrap">
           <span class="value chips-value" id="ui-chips">10</span>
           <span class="interest-preview" id="ui-interest-preview">+2</span>
@@ -204,17 +304,12 @@ export class GameUI {
       </div>
       <div class="deck-actions">
         <div class="deck-btn" id="ui-btn-shuffle">
-          <span class="label">SHUFFLE</span>
-          <div class="val-box"><span class="val blue" id="ui-shuffle-count">4</span></div>
+          <span class="label" id="ui-shuffle-label">SHUFFLE MATRIX</span>
+          <div class="val-box"><span class="val blue" id="ui-shuffle-count">4</span><span class="val-max"> / 4</span></div>
         </div>
         <div class="deck-btn" id="ui-btn-deal">
-          <span class="label">DEAL</span>
-          <div class="val-box"><span class="val red" id="ui-deal-count">4</span></div>
-        </div>
-      </div>
-      <div class="vs-panel" style="padding: 10px;">
-        <div class="vs-result" id="ui-clash-score" style="font-size: 1.2rem; color: var(--orange-accent); text-align: center;">
-          LANE CLASH
+          <span class="label" id="ui-deal-label">DEAL CARD</span>
+          <div class="val-box"><span class="val red" id="ui-deal-count">4</span><span class="val-max"> / 4</span></div>
         </div>
       </div>
       <div class="action-row">
@@ -333,6 +428,19 @@ export class GameUI {
       }
     });
 
+    const langBtn = this.root.querySelector('#ui-btn-lang');
+    if (langBtn) {
+      langBtn.addEventListener('click', () => {
+        if (currentLang === 'EN') currentLang = 'ZH';
+        else if (currentLang === 'ZH') currentLang = 'ZH_TW';
+        else if (currentLang === 'ZH_TW') currentLang = 'JA';
+        else currentLang = 'EN';
+        
+        langBtn.textContent = LANG_DISPLAY[currentLang];
+        this.render();
+      });
+    }
+
     window.addEventListener('resize', () => this.render());
     window.addEventListener('mousemove', (e) => {
       this.mouseX = e.clientX;
@@ -363,151 +471,194 @@ export class GameUI {
     if (!result) return;
 
     this.isAnimating = true;
-    const dz = this.matrixWrapperElement?.querySelector(`.drop-zone-${edge.toLowerCase()}`) as HTMLElement;
-    const dzBlocks = dz ? Array.from(dz.querySelectorAll('.card-block')) as HTMLElement[] : [];
-    const buildLaneIndices = (laneIndex: number): number[] => {
-      const indices: number[] = [];
-      for (let step = 0; step < size; step += 1) {
-        let r = 0, c = 0;
-        if (edge === 'TOP') { r = step; c = laneIndex; }
-        else if (edge === 'BOTTOM') { r = size - 1 - step; c = laneIndex; }
-        else if (edge === 'LEFT') { r = laneIndex; c = step; }
-        else if (edge === 'RIGHT') { r = laneIndex; c = size - 1 - step; }
-        indices.push(r * size + c);
-      }
-      return indices;
-    };
-
-    let visualScore = Number(state.currentScore) || 0;
-    const { stride } = this.getCellMetrics(size);
-
-    for (let cardIndex = 0; cardIndex < selectedCard.symbols.length; cardIndex += 1) {
-      const laneIndex = result.attachmentOffset + cardIndex;
-      const attackerBlock = dzBlocks[cardIndex];
-
-      if (laneIndex < 0 || laneIndex >= size) {
-        if (attackerBlock) {
-          await gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.3, ease: 'power2.in' });
+    try {
+      const previewBox = this.previewBoxElement;
+      const dzBlocks = previewBox ? Array.from(previewBox.querySelectorAll('.card-block')) as HTMLElement[] : [];
+      const buildLaneIndices = (laneIndex: number): number[] => {
+        const indices: number[] = [];
+        for (let step = 0; step < size; step += 1) {
+          let r = 0, c = 0;
+          if (edge === 'TOP') { r = step; c = laneIndex; }
+          else if (edge === 'BOTTOM') { r = size - 1 - step; c = laneIndex; }
+          else if (edge === 'LEFT') { r = laneIndex; c = step; }
+          else if (edge === 'RIGHT') { r = laneIndex; c = size - 1 - step; }
+          indices.push(r * size + c);
         }
-        continue;
-      }
+        return indices;
+      };
 
-      const laneIndices = buildLaneIndices(laneIndex);
-      const firstCellIdx = laneIndices[0];
-      const firstCellPos = { r: Math.floor(firstCellIdx / size), c: firstCellIdx % size };
+      let visualScore = Number(state.currentScore) || 0;
+      const { stride } = this.getCellMetrics(size);
 
-      const laneShift = result.shiftedLanes?.find((shift) => {
-        if (edge === 'TOP' || edge === 'BOTTOM') return shift.type === 'col' && shift.index === laneIndex;
-        if (edge === 'LEFT' || edge === 'RIGHT') return shift.type === 'row' && shift.index === laneIndex;
-        return false;
-      });
+      for (let cardIndex = 0; cardIndex < selectedCard.symbols.length; cardIndex += 1) {
+        const laneIndex = result.attachmentOffset + cardIndex;
+        const attackerBlock = dzBlocks[cardIndex];
 
-      if (laneShift && attackerBlock) {
-        const firstCell = this.matrixElement?.children[firstCellIdx] as HTMLElement;
-        const startRect = attackerBlock.getBoundingClientRect();
-        const endRect = firstCell.getBoundingClientRect();
-        const localDx = endRect.left - startRect.left;
-        const localDy = endRect.top - startRect.top;
-
-        const tl = gsap.timeline();
-        await tl.to(attackerBlock, { x: localDx * 0.4, y: localDy * 0.4, duration: 0.15, ease: 'power2.out' })
-          .to(attackerBlock, { x: -localDx * 0.2, y: -localDy * 0.2, duration: 0.25, ease: 'elastic.out(1, 0.3)' });
-
-        gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.3, ease: 'power2.in' });
-
-        gsap.fromTo(firstCell, { filter: 'brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)' }, { filter: 'none', duration: 0.5 });
-
-        const attackerType = selectedCard.symbols[cardIndex];
-        const penaltyVal = Number(SCORE_WEIGHTS[attackerType]) || 0;
-        if (penaltyVal > 0) {
-          this.showScorePopup(-penaltyVal, firstCellIdx, true);
-          visualScore -= penaltyVal;
-          const scoreVal = document.getElementById('ui-score');
-          if (scoreVal) {
-            scoreVal.textContent = Math.floor(visualScore).toString();
-            gsap.fromTo(scoreVal, { scale: 1.4, color: '#F44336', x: 5 }, { scale: 1, color: '#FFF', x: 0, duration: 0.3 });
+        if (laneIndex < 0 || laneIndex >= size) {
+          if (attackerBlock) {
+            await gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.3, ease: 'power2.in' });
           }
+          continue;
         }
 
-        const laneCells = laneIndices.map((idx) => this.matrixElement?.children[idx] as HTMLElement);
-        let sx = 0, sy = 0;
-        if (laneShift.type === 'row') sx = laneShift.direction * stride;
-        else sy = laneShift.direction * stride;
+        const laneIndices = buildLaneIndices(laneIndex);
+        const firstCellIdx = laneIndices[0];
+        const firstCellPos = { r: Math.floor(firstCellIdx / size), c: firstCellIdx % size };
 
-        const shiftPromises = laneCells.map((cell) => gsap.to(cell, {
-          x: sx,
-          y: sy,
-          duration: 0.4,
-          ease: 'power2.inOut',
-          onComplete: () => {
-            gsap.set(cell, { x: 0, y: 0 });
-          }
-        }));
-        await Promise.all(shiftPromises);
-
-        laneIndices.forEach((idx) => {
-          const r = Math.floor(idx / size);
-          const c = idx % size;
-          (this.matrixElement?.children[idx] as HTMLImageElement).src = blockAsset(result.newGrid[r][c]);
+        const laneShift = result.shiftedLanes?.find((shift) => {
+          if (edge === 'TOP' || edge === 'BOTTOM') return shift.type === 'col' && shift.index === laneIndex;
+          if (edge === 'LEFT' || edge === 'RIGHT') return shift.type === 'row' && shift.index === laneIndex;
+          return false;
         });
-        continue;
-      }
 
-      const laneStartsWinning = result.replacedCells.some((cell) => cell.r === firstCellPos.r && cell.c === firstCellPos.c);
-
-      if (laneStartsWinning && attackerBlock) {
-        const firstCell = this.matrixElement?.children[firstCellIdx] as HTMLElement;
-        if (firstCell) {
+        if (laneShift && attackerBlock) {
+          const firstCell = this.matrixElement?.children[firstCellIdx] as HTMLElement;
           const startRect = attackerBlock.getBoundingClientRect();
           const endRect = firstCell.getBoundingClientRect();
           const localDx = endRect.left - startRect.left;
           const localDy = endRect.top - startRect.top;
-          await gsap.to(attackerBlock, { x: localDx, y: localDy, duration: 0.4, ease: 'back.inOut(2)' });
-        }
-      } else if (attackerBlock) {
-        gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.4, ease: 'power2.in' });
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
 
-      for (let step = 0; step < size; step += 1) {
-        const index = laneIndices[step];
-        const cellPos = { r: Math.floor(index / size), c: index % size };
-        if (!result.replacedCells.some((cell) => cell.r === cellPos.r && cell.c === cellPos.c)) break;
+          const tl = gsap.timeline();
+          await tl.to(attackerBlock, { x: localDx * 0.4, y: localDy * 0.4, duration: 0.15, ease: 'power2.out' })
+            .to(attackerBlock, { x: -localDx * 0.2, y: -localDy * 0.2, duration: 0.25, ease: 'elastic.out(1, 0.3)' });
 
-        const img = this.matrixElement?.children[index] as HTMLImageElement;
-        const defenderSymbol = state.matrix.grid[cellPos.r][cellPos.c];
-        const gain = SCORE_WEIGHTS[defenderSymbol];
+          gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.3, ease: 'power2.in' });
 
-        if (img) {
-          const smash = 60; let sx = 0, sy = 0;
-          if (edge === 'TOP') sy = -smash; else if (edge === 'BOTTOM') sy = smash;
-          else if (edge === 'LEFT') sx = -smash; else if (edge === 'RIGHT') sx = smash;
+          gsap.fromTo(firstCell, { filter: 'brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)' }, { filter: 'none', duration: 0.5 });
 
-          img.src = blockAsset(result.newGrid[cellPos.r][cellPos.c]);
-          gsap.fromTo(img,
-            { x: sx, y: sy, scale: 2.2, zIndex: 100, filter: 'brightness(3) contrast(1.2) drop-shadow(0 0 30px rgba(255,160,0,1))' },
-            { x: 0, y: 0, scale: 1, zIndex: 1, filter: 'brightness(1) contrast(1) drop-shadow(0 0 0px rgba(0,0,0,0))', duration: 0.4, ease: 'back.out(2.5)' }
-          );
-
-          if (gain > 0) {
-            this.showScorePopup(gain, index);
-            visualScore += gain;
+          const attackerType = selectedCard.symbols[cardIndex];
+          const penaltyVal = Number(SCORE_WEIGHTS[attackerType]) || 0;
+          if (penaltyVal > 0) {
+            this.showScorePopup(-penaltyVal, firstCellIdx, true);
+            visualScore -= penaltyVal;
             const scoreVal = document.getElementById('ui-score');
             if (scoreVal) {
-              scoreVal.textContent = visualScore.toString();
-              gsap.fromTo(scoreVal, { scale: 1.4, color: '#FF9800', x: -5 }, { scale: 1, color: '#FFF', x: 0, duration: 0.3 });
+              scoreVal.textContent = Math.floor(visualScore).toString();
+              gsap.fromTo(scoreVal, { scale: 1.4, color: '#F44336', x: 5 }, { scale: 1, color: '#FFF', x: 0, duration: 0.3 });
             }
           }
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    this.store.applyClashResult(result);
-    this.isAnimating = false;
-    this.render();
+          const laneCells = laneIndices.map((idx) => this.matrixElement?.children[idx] as HTMLElement);
+          let sx = 0, sy = 0;
+          if (laneShift.type === 'row') sx = laneShift.direction * stride;
+          else sy = laneShift.direction * stride;
+
+          const shiftPromises = laneCells.map((cell) => gsap.to(cell, {
+            x: sx,
+            y: sy,
+            duration: 0.4,
+            ease: 'power2.inOut',
+            onComplete: () => {
+              gsap.set(cell, { x: 0, y: 0 });
+            }
+          }));
+          await Promise.all(shiftPromises);
+
+          laneIndices.forEach((idx) => {
+            const r = Math.floor(idx / size);
+            const c = idx % size;
+            (this.matrixElement?.children[idx] as HTMLImageElement).src = blockAsset(result.newGrid[r][c]);
+          });
+          continue;
+        }
+
+        const laneStartsWinning = result.replacedCells.some((cell) => cell.r === firstCellPos.r && cell.c === firstCellPos.c);
+
+        if (laneStartsWinning && attackerBlock) {
+          gsap.set(attackerBlock, { opacity: 0 });
+        } else if (attackerBlock) {
+          const firstCell = this.matrixElement?.children[firstCellIdx] as HTMLElement;
+          if (firstCell) {
+            const isTie = result.tieCells?.some(c => c.r === firstCellPos.r && c.c === firstCellPos.c);
+
+            if (isTie) {
+              gsap.to(attackerBlock, { x: "+=4", duration: 0.05, yoyo: true, repeat: 5, onComplete: () => {
+                gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.3, ease: 'power2.in' });
+              }});
+              gsap.fromTo(firstCell, { x: -4 }, { x: 4, duration: 0.05, yoyo: true, repeat: 5, onComplete: () => { gsap.set(firstCell, { x: 0 }); } });
+            } else {
+              gsap.to(attackerBlock, { scale: 0, opacity: 0, duration: 0.3, ease: 'power2.in' });
+              gsap.fromTo(firstCell, { x: -4 }, { x: 4, duration: 0.05, yoyo: true, repeat: 5, onComplete: () => { gsap.set(firstCell, { x: 0 }); } });
+              gsap.fromTo(firstCell, { filter: 'brightness(1.5) hue-rotate(-30deg)' }, { filter: 'none', duration: 0.4 });
+            }
+            await new Promise((resolve) => setTimeout(resolve, 300));
+          } else {
+            gsap.to(attackerBlock, { scale: 0, opacity: 0, duration: 0.4, ease: 'power2.in' });
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+        }
+
+        for (let step = 0; step < size; step += 1) {
+          const index = laneIndices[step];
+          const cellPos = { r: Math.floor(index / size), c: index % size };
+          
+          const isReplaced = result.replacedCells.some((cell) => cell.r === cellPos.r && cell.c === cellPos.c);
+          const isFailed = result.failedCells?.some((cell) => cell.r === cellPos.r && cell.c === cellPos.c);
+          const isTie = result.tieCells?.some((cell) => cell.r === cellPos.r && cell.c === cellPos.c);
+
+          if (!isReplaced && !isFailed && !isTie) break;
+
+          const img = this.matrixElement?.children[index] as HTMLImageElement;
+          
+          if ((isFailed || isTie) && img) {
+            gsap.fromTo(img, { x: -4 }, { x: 4, duration: 0.05, yoyo: true, repeat: 5, onComplete: () => { gsap.set(img, { x: 0 }); } });
+            
+            if (isFailed) {
+              const attackerType = selectedCard.symbols[cardIndex];
+              const penaltyVal = Number(SCORE_WEIGHTS[attackerType]) || 0;
+              
+              if (penaltyVal > 0) {
+                gsap.fromTo(img, { filter: 'brightness(1.5) hue-rotate(-30deg)' }, { filter: 'none', duration: 0.4 });
+                
+                const popupIndex = step > 0 ? laneIndices[step - 1] : index;
+                this.showScorePopup(-penaltyVal, popupIndex, true);
+                
+                visualScore -= penaltyVal;
+                const scoreVal = document.getElementById('ui-score');
+                if (scoreVal) {
+                  scoreVal.textContent = Math.floor(visualScore).toString();
+                  gsap.fromTo(scoreVal, { scale: 1.4, color: '#F44336', x: 5 }, { scale: 1, color: '#FFF', x: 0, duration: 0.3 });
+                }
+              }
+            }
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            break;
+          }
+
+          if (isReplaced && img) {
+            const defenderSymbol = state.matrix.grid[cellPos.r][cellPos.c];
+            const gain = SCORE_WEIGHTS[defenderSymbol];
+            const smash = 30; let sx = 0, sy = 0;
+            if (edge === 'TOP') sy = -smash; else if (edge === 'BOTTOM') sy = smash;
+            else if (edge === 'LEFT') sx = -smash; else if (edge === 'RIGHT') sx = smash;
+
+            img.src = blockAsset(result.newGrid[cellPos.r][cellPos.c]);
+            gsap.fromTo(img,
+              { x: sx, y: sy, scale: 1.5, zIndex: 100, filter: 'brightness(2) contrast(1.1) drop-shadow(0 0 15px rgba(255,160,0,0.8))' },
+              { x: 0, y: 0, scale: 1, zIndex: 1, filter: 'brightness(1) contrast(1) drop-shadow(0 0 0px rgba(0,0,0,0))', duration: 0.6, ease: 'elastic.out(1, 0.6)' }
+            );
+
+            if (gain > 0) {
+              this.showScorePopup(gain, index);
+              visualScore += gain;
+              const scoreVal = document.getElementById('ui-score');
+              if (scoreVal) {
+                scoreVal.textContent = visualScore.toString();
+                gsap.fromTo(scoreVal, { scale: 1.4, color: '#FF9800', x: -5 }, { scale: 1, color: '#FFF', x: 0, duration: 0.3 });
+              }
+            }
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    } finally {
+      this.store.applyClashResult(result);
+      this.isAnimating = false;
+      this.render();
+    }
   }
 
   private showScorePopup(score: number, matrixIndex: number, isPenalty: boolean = false): void {
@@ -530,6 +681,7 @@ export class GameUI {
   }
 
   private updateHeldPosition(): void {
+    if (this.isAnimating) return;
     const state = this.store.getState();
     const lastId = state.selectedCardIds[state.selectedCardIds.length - 1];
     this.handElement?.querySelectorAll('.held').forEach((el) => {
@@ -547,13 +699,7 @@ export class GameUI {
     const cardElement = this.handElement?.querySelector(`[data-card-id="${lastId}"]`) as HTMLElement | null;
     if (!cardElement || !this.handElement) return;
 
-    const handRect = this.handElement.getBoundingClientRect();
-    const isInsideReturnZone =
-      this.mouseX >= handRect.left &&
-      this.mouseX <= handRect.right &&
-      this.mouseY >= handRect.top - 24 &&
-      this.mouseY <= handRect.bottom + 24;
-    const shouldReturnToHand = isInsideReturnZone || this.isInLeftReturnZone();
+    const shouldReturnToHand = this.isInsideSafeZone();
 
     if (shouldReturnToHand) {
       if (state.preview) {
@@ -563,6 +709,7 @@ export class GameUI {
         cardElement.classList.remove('held');
         cardElement.style.left = '';
         cardElement.style.top = '';
+        gsap.killTweensOf(cardElement);
         gsap.set(cardElement, { clearProps: 'all' });
         this.render();
       }
@@ -571,6 +718,7 @@ export class GameUI {
 
     if (!cardElement.classList.contains('held')) {
       cardElement.classList.add('held');
+      gsap.killTweensOf(cardElement);
       if (state.selectedCardIds.length > 1) {
         this.store.selectCard(lastId);
         this.renderHand(this.store.getState());
@@ -585,14 +733,14 @@ export class GameUI {
       yPercent: -50,
       rotation: 0,
       opacity: state.preview ? 0 : 1,
-      pointerEvents: state.preview ? 'none' : 'auto'
+      pointerEvents: 'none'
     });
   }
 
   private showPileModal(type: 'DECK' | 'DISCARD'): void {
     const state = this.store.getState();
     const cards = type === 'DECK' ? state.deck : state.discardPile;
-    const title = type === 'DECK' ? 'Deck' : 'Wasted Cards';
+    const title = type === 'DECK' ? I18N[currentLang].DECK : I18N[currentLang].WASTED;
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay pile-overlay';
     overlay.innerHTML = `
@@ -600,7 +748,6 @@ export class GameUI {
         <div class="modal-header"><h2>${title} (${cards.length})</h2><button class="close-btn">&times;</button></div>
         <div class="pile-grid">
           ${cards.map((card) => `<div class="pile-card-item">${createCardMarkup(card)}</div>`).join('')}
-          ${cards.length === 0 ? '<p style="color:#888; grid-column: 1/-1;">No cards here yet.</p>' : ''}
         </div>
       </div>
     `;
@@ -632,7 +779,7 @@ export class GameUI {
 
       overlay.innerHTML = `
         <div class="modal-content deck-selector">
-          <h1>Choose Your Deck</h1>
+          <h1>${I18N[currentLang].CHOOSE_DECK}</h1>
           <div class="deck-options">${previewGroups}</div>
         </div>
       `;
@@ -649,9 +796,9 @@ export class GameUI {
     if (state.status === 'LEVEL_WON') {
       overlay.innerHTML = `
         <div class="modal-content status-card">
-          <h1 class="status-title success">LEVEL COMPLETE!</h1>
+          <h1 class="status-title success">${I18N[currentLang].LEVEL_WON}</h1>
           <p class="status-copy">Interest: CHIPS +${state.lastInterestEarned}</p>
-          <button id="next-btn" class="status-button success">NEXT LEVEL</button>
+          <button id="next-btn" class="status-button success">${I18N[currentLang].NEXT_LEVEL}</button>
         </div>
       `;
       this.root.appendChild(overlay);
@@ -665,10 +812,10 @@ export class GameUI {
     if (state.status === 'WIN') {
       overlay.innerHTML = `
         <div class="modal-content status-card">
-          <h1 class="status-title gold">CONGRATULATIONS!</h1>
+          <h1 class="status-title gold">${I18N[currentLang].WIN}</h1>
           <p class="status-copy">You conquered all 3 levels!</p>
           <p class="status-copy">Final Chips: ${state.chips}</p>
-          <button id="restart-btn" class="status-button primary">New Game</button>
+          <button id="restart-btn" class="status-button primary">${I18N[currentLang].RESTART}</button>
         </div>
       `;
       this.root.appendChild(overlay);
@@ -681,9 +828,9 @@ export class GameUI {
 
     overlay.innerHTML = `
       <div class="modal-content status-card">
-        <h1 class="status-title">Game Over</h1>
+        <h1 class="status-title">${I18N[currentLang].GAME_OVER}</h1>
         <p class="status-copy">Final Score: ${state.currentScore}</p>
-        <button id="restart-btn" class="status-button danger">Try Again</button>
+        <button id="restart-btn" class="status-button danger">${I18N[currentLang].RESTART}</button>
       </div>
     `;
     this.root.appendChild(overlay);
@@ -701,7 +848,7 @@ export class GameUI {
     document.documentElement.style.setProperty('--matrix-size', String(size));
     document.documentElement.style.setProperty('--card-length', String(CARD_LENGTH));
 
-    const levelEl = document.getElementById('ui-level'); if (levelEl) levelEl.textContent = `${state.currentLevel}/3`;
+    const levelEl = document.getElementById('ui-level'); if (levelEl) levelEl.textContent = `${I18N[currentLang].STAGE} ${state.currentLevel}/3`;
     const levelNameEl = document.getElementById('ui-level-name'); if (levelNameEl) levelNameEl.textContent = state.levelName;
     const levelIconEl = document.getElementById('ui-level-icon') as HTMLImageElement | null; if (levelIconEl) levelIconEl.src = iconAsset(state.levelIcon);
     const goalEl = document.getElementById('ui-goal'); if (goalEl) goalEl.textContent = (state.levelGoal || 0).toString();
@@ -725,6 +872,40 @@ export class GameUI {
     const deckCountEl = document.getElementById('ui-deck-count'); if (deckCountEl) deckCountEl.textContent = state.deck.length.toString();
     const discardCountEl = document.getElementById('ui-discard-count'); if (discardCountEl) discardCountEl.textContent = state.discardPile.length.toString();
 
+    // Update Translations
+    const stageLabel = document.getElementById('ui-level');
+    if (stageLabel) stageLabel.textContent = `${I18N[currentLang].STAGE} ${state.currentLevel}/3`;
+    
+    const stageName = document.getElementById('ui-level-name');
+    if (stageName) {
+      const key = state.levelName.toUpperCase() as keyof typeof I18N['EN'];
+      stageName.textContent = I18N[currentLang][key] || state.levelName;
+    }
+    
+    const scoreLabel = document.getElementById('ui-score-label');
+    if (scoreLabel) scoreLabel.textContent = I18N[currentLang].SCORE;
+
+    const chipsLabel = document.getElementById('ui-chips-label');
+    if (chipsLabel) chipsLabel.textContent = I18N[currentLang].CHIPS;
+
+    const shuffleLabel = document.getElementById('ui-shuffle-label');
+    if (shuffleLabel) shuffleLabel.textContent = I18N[currentLang].SHUFFLE_MATRIX;
+
+    const dealLabel = document.getElementById('ui-deal-label');
+    if (dealLabel) dealLabel.textContent = I18N[currentLang].DEAL_CARD;
+
+    const endBtn = document.getElementById('ui-btn-end');
+    if (endBtn) endBtn.textContent = I18N[currentLang].END;
+
+    const rotateBtn = document.getElementById('ui-btn-rotate');
+    if (rotateBtn) rotateBtn.textContent = I18N[currentLang].ROTATE;
+
+    const deckLabel = document.querySelector('#ui-deck-pile .pile-label');
+    if (deckLabel) deckLabel.textContent = I18N[currentLang].DECK;
+
+    const discardLabel = document.querySelector('#ui-discard-pile .pile-label');
+    if (discardLabel) discardLabel.textContent = I18N[currentLang].WASTED;
+    
     const clashScoreEl = document.getElementById('ui-clash-score');
     if (clashScoreEl) {
       if (state.preview && !this.isAnimating) {
@@ -742,18 +923,30 @@ export class GameUI {
     }
 
     if (this.matrixElement) {
-      this.matrixElement.innerHTML = '';
       this.matrixElement.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
       this.matrixElement.style.gridTemplateRows = `repeat(${size}, 1fr)`;
       const gridToRender = state.matrix.grid;
+      
+      const expectedChildCount = size * size;
+      while (this.matrixElement.children.length > expectedChildCount) {
+        this.matrixElement.lastElementChild?.remove();
+      }
+      while (this.matrixElement.children.length < expectedChildCount) {
+        this.matrixElement.appendChild(document.createElement('img'));
+      }
+
       for (let r = 0; r < size; r += 1) {
         for (let c = 0; c < size; c += 1) {
-          const img = document.createElement('img');
-          img.src = blockAsset(gridToRender[r][c]);
+          const img = this.matrixElement.children[r * size + c] as HTMLImageElement;
+          const expectedSrc = blockAsset(gridToRender[r][c]);
+          if (!img.src.includes(expectedSrc)) {
+            img.src = expectedSrc;
+          }
           if (state.preview && state.preview.replacedCells.some((cell) => cell.r === r && cell.c === c)) {
             img.style.filter = 'drop-shadow(0 0 5px rgba(255, 152, 0, 0.4))';
+          } else {
+            img.style.filter = '';
           }
-          this.matrixElement.appendChild(img);
         }
       }
     }
@@ -767,7 +960,6 @@ export class GameUI {
     if (this.previewBoxElement) {
       const { cellSize, gap, stride } = this.getCellMetrics(size);
       const matrixExtent = this.matrixElement?.offsetWidth ?? 0;
-      this.previewBoxElement.innerHTML = '';
       this.previewBoxElement.style.display = state.preview ? 'block' : 'none';
       this.previewBoxElement.style.inset = '0';
 
@@ -775,53 +967,71 @@ export class GameUI {
         const selectedCard = state.hand.find((card) => card.id === state.selectedCardIds[state.selectedCardIds.length - 1]);
         if (selectedCard) {
           const overlapCount = selectedCard.symbols.length;
-          const guide = document.createElement('div');
-          guide.className = 'preview-guide';
-          guide.style.position = 'absolute';
+          
+          let guide = this.previewBoxElement.querySelector('.preview-guide') as HTMLElement;
+          if (!guide) {
+            guide = document.createElement('div');
+            guide.className = 'preview-guide';
+            guide.style.position = 'absolute';
+            this.previewBoxElement.appendChild(guide);
+          }
 
-          const cardContainer = createCardElement(
-            selectedCard,
-            'preview-card',
-            lastPreviewEdge === 'TOP' || lastPreviewEdge === 'BOTTOM' ? 'horizontal' : 'vertical'
-          );
-          cardContainer.style.position = 'absolute';
+          const orientation = lastPreviewEdge === 'TOP' || lastPreviewEdge === 'BOTTOM' ? 'horizontal' : 'vertical';
+          let cardContainer = this.previewBoxElement.querySelector('.preview-card') as HTMLElement;
+          if (!cardContainer) {
+            cardContainer = createCardElement(selectedCard, 'preview-card', orientation);
+            cardContainer.style.position = 'absolute';
+            this.previewBoxElement.appendChild(cardContainer);
+          } else {
+            // Update orientation class
+            if (orientation === 'horizontal') {
+              cardContainer.classList.add('render-card-horizontal');
+            } else {
+              cardContainer.classList.remove('render-card-horizontal');
+            }
+            // Update blocks
+            const blocks = Array.from(cardContainer.querySelectorAll('.card-block')) as HTMLImageElement[];
+            selectedCard.symbols.forEach((symbol, i) => {
+              const expectedSrc = blockAsset(symbol);
+              if (blocks[i] && !blocks[i].src.includes(expectedSrc)) {
+                blocks[i].src = expectedSrc;
+              }
+            });
+          }
 
           if (lastPreviewEdge === 'TOP') {
-            const guideLeft = Math.max(0, state.preview.attachmentOffset) * stride;
+            const guideLeft = state.preview.attachmentOffset * stride;
             guide.style.left = `${guideLeft}px`;
             guide.style.top = `${-stride}px`;
             guide.style.width = `${overlapCount * stride - gap}px`;
             guide.style.height = `${cellSize}px`;
-            cardContainer.style.left = `${state.preview.attachmentOffset * stride}px`;
+            cardContainer.style.left = `${guideLeft}px`;
             cardContainer.style.top = `${-stride}px`;
           } else if (lastPreviewEdge === 'BOTTOM') {
-            const guideLeft = Math.max(0, state.preview.attachmentOffset) * stride;
+            const guideLeft = state.preview.attachmentOffset * stride;
             guide.style.left = `${guideLeft}px`;
             guide.style.top = `${matrixExtent + gap}px`;
             guide.style.width = `${overlapCount * stride - gap}px`;
             guide.style.height = `${cellSize}px`;
-            cardContainer.style.left = `${state.preview.attachmentOffset * stride}px`;
+            cardContainer.style.left = `${guideLeft}px`;
             cardContainer.style.top = `${matrixExtent + gap}px`;
           } else if (lastPreviewEdge === 'LEFT') {
-            const guideTop = Math.max(0, state.preview.attachmentOffset) * stride;
+            const guideTop = state.preview.attachmentOffset * stride;
             guide.style.left = `${-stride}px`;
             guide.style.top = `${guideTop}px`;
             guide.style.width = `${cellSize}px`;
             guide.style.height = `${overlapCount * stride - gap}px`;
             cardContainer.style.left = `${-stride}px`;
-            cardContainer.style.top = `${state.preview.attachmentOffset * stride}px`;
+            cardContainer.style.top = `${guideTop}px`;
           } else {
-            const guideTop = Math.max(0, state.preview.attachmentOffset) * stride;
+            const guideTop = state.preview.attachmentOffset * stride;
             guide.style.left = `${matrixExtent + gap}px`;
             guide.style.top = `${guideTop}px`;
             guide.style.width = `${cellSize}px`;
             guide.style.height = `${overlapCount * stride - gap}px`;
             cardContainer.style.left = `${matrixExtent + gap}px`;
-            cardContainer.style.top = `${state.preview.attachmentOffset * stride}px`;
+            cardContainer.style.top = `${guideTop}px`;
           }
-
-          this.previewBoxElement.appendChild(guide);
-          this.previewBoxElement.appendChild(cardContainer);
         }
       }
     }
@@ -834,24 +1044,47 @@ export class GameUI {
   private renderHand(state: GameState): void {
     if (!this.handElement) return;
     const handElement = this.handElement;
-    handElement.innerHTML = '';
+    
+    // Remove cards that are no longer in hand
+    const currentCardIds = state.hand.map(c => c.id);
+    Array.from(handElement.children).forEach(child => {
+      const id = child.getAttribute('data-card-id');
+      if (id && !currentCardIds.includes(id)) {
+        child.remove();
+      }
+    });
 
     state.hand.forEach((card, index) => {
-      const cardElement = createCardElement(card, '', 'vertical', true);
-      cardElement.setAttribute('data-card-id', card.id);
-      cardElement.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (this.isAnimating) return;
-        this.store.selectCard(card.id);
-        this.render();
-      });
+      let cardElement = handElement.querySelector(`[data-card-id="${card.id}"]`) as HTMLElement;
+      if (!cardElement) {
+        cardElement = createCardElement(card, '', 'vertical', true);
+        cardElement.setAttribute('data-card-id', card.id);
+        cardElement.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.isAnimating) return;
+          this.store.selectCard(card.id);
+          this.render();
+        });
+        handElement.appendChild(cardElement);
+      } else {
+        // Update blocks if needed (e.g. if flipped)
+        const blocks = Array.from(cardElement.querySelectorAll('.card-block')) as HTMLImageElement[];
+        card.symbols.forEach((symbol, i) => {
+          const expectedSrc = blockAsset(symbol);
+          if (!blocks[i].src.includes(expectedSrc)) {
+            blocks[i].src = expectedSrc;
+          }
+        });
+      }
 
       const isSelected = state.selectedCardIds.includes(card.id);
       const isLastSelected = state.selectedCardIds[state.selectedCardIds.length - 1] === card.id;
 
-      if (isSelected) cardElement.classList.add('selected');
-
-      handElement.appendChild(cardElement);
+      if (isSelected) {
+        cardElement.classList.add('selected');
+      } else {
+        cardElement.classList.remove('selected');
+      }
 
       const total = state.hand.length;
       const spread = 85;
@@ -862,7 +1095,8 @@ export class GameUI {
       const fanY = Math.abs(offset) * 5;
       const angle = offset * angleStep;
 
-      gsap.to(cardElement, {
+      if (!cardElement.classList.contains('held')) {
+        gsap.to(cardElement, {
           rotation: angle,
           x: fanX,
           y: fanY,
@@ -871,8 +1105,10 @@ export class GameUI {
           transformOrigin: '50% 50%',
           zIndex: isSelected ? (isLastSelected ? 1100 : 1000 + index) : index,
           duration: 0.4,
-          ease: 'power2.out'
+          ease: 'power2.out',
+          overwrite: 'auto'
         });
+      }
     });
   }
 }

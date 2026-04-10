@@ -20,6 +20,8 @@ export interface LaneResult {
   penalty: number;
   laneScores: number[];
   replacedCells: { r: number; c: number }[];
+  failedCells?: { r: number; c: number }[];
+  tieCells?: { r: number; c: number }[];
   attachmentOffset: number;
   shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[];
 }
@@ -84,6 +86,8 @@ export function executeLaneClash(
   let penalty = 0;
   const laneScores: number[] = Array.from({ length: card.symbols.length }, () => 0);
   const replacedCells: { r: number; c: number }[] = [];
+  const failedCells: { r: number; c: number }[] = [];
+  const tieCells: { r: number; c: number }[] = [];
   const shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[] = [];
 
   for (let cardIndex = 0; cardIndex < card.symbols.length; cardIndex += 1) {
@@ -130,6 +134,13 @@ export function executeLaneClash(
           r += dr; c += dc;
           if (r < 0 || r > size - 1 || c < 0 || c > size - 1) break;
         } else {
+          // Attacker loses to the current defender (or tie), apply penalty if it's a loss
+          if (WIN_MAP[currentDefender] === attacker) {
+            penalty += Number(SCORE_WEIGHTS[attacker]) || 0;
+            failedCells.push({ r, c });
+          } else if (currentDefender === attacker) {
+            tieCells.push({ r, c });
+          }
           break;
         }
       }
@@ -142,6 +153,8 @@ export function executeLaneClash(
     penalty: penalty || 0, 
     laneScores, 
     replacedCells, 
+    failedCells,
+    tieCells,
     attachmentOffset,
     shiftedLanes 
   };
