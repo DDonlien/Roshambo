@@ -148,7 +148,7 @@ function createCardElement(
   element.className = `${cardClassName(isHandCard)} ${orientation === 'horizontal' ? 'render-card-horizontal' : ''} ${extraClass}`.trim();
   element.style.setProperty('--card-block-count', String(card.symbols.length));
   
-  if (isHandCard || extraClass.includes('preview-card') || extraClass.includes('modal-card')) {
+  if (isHandCard || extraClass.includes('modal-card')) {
     element.classList.add('full-asset');
     const image = document.createElement('img');
     image.className = 'card-full-image';
