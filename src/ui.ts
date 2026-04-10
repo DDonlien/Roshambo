@@ -1,5 +1,5 @@
 import { GameStore } from './state';
-import { Card, GameState, InsertEdge, LevelIcon, RPS } from './types';
+import { CARD_LENGTH, Card, GameState, InsertEdge, LevelIcon, RPS } from './types';
 import { gsap } from 'gsap';
 
 const EDGE_ORDER: readonly InsertEdge[] = ['TOP', 'BOTTOM', 'LEFT', 'RIGHT'];
@@ -25,13 +25,20 @@ function iconAsset(icon: LevelIcon): string {
   return `Sketch/IconType=${icon}.png`;
 }
 
-function cardClassName(): string {
-  return 'render-card card-asset';
+function cardClassName(isHandCard: boolean): string {
+  return `render-card${isHandCard ? ' card-asset' : ''}`;
 }
 
-function createCardElement(card: Card, extraClass = ''): HTMLDivElement {
+type CardOrientation = 'vertical' | 'horizontal';
+
+function createCardElement(
+  card: Card,
+  extraClass = '',
+  orientation: CardOrientation = 'vertical',
+  isHandCard = false
+): HTMLDivElement {
   const element = document.createElement('div');
-  element.className = `${cardClassName()} ${extraClass}`.trim();
+  element.className = `${cardClassName(isHandCard)} ${orientation === 'horizontal' ? 'render-card-horizontal' : ''} ${extraClass}`.trim();
   element.style.setProperty('--card-block-count', String(card.symbols.length));
   card.symbols.forEach((symbol) => {
     const image = document.createElement('img');
@@ -50,22 +57,22 @@ function createCardMarkup(card: Card): string {
   `;
 }
 
-function createPreviewDeckCards(type: number, size: number): Card[] {
+function createPreviewDeckCards(type: number): Card[] {
   const symbolSets: Record<number, RPS[][]> = {
     1: [
-      [RPS.PAPER, ...Array.from({ length: Math.max(0, size - 1) }, () => RPS.BLANK)],
-      [RPS.SCISSORS, ...Array.from({ length: Math.max(0, size - 1) }, () => RPS.BLANK)],
-      [RPS.ROCK, ...Array.from({ length: Math.max(0, size - 1) }, () => RPS.BLANK)]
+      [RPS.PAPER, RPS.BLANK, RPS.BLANK],
+      [RPS.SCISSORS, RPS.BLANK, RPS.BLANK],
+      [RPS.ROCK, RPS.BLANK, RPS.BLANK]
     ],
     2: [
-      [...Array.from({ length: Math.min(2, size) }, () => RPS.PAPER), ...Array.from({ length: Math.max(0, size - Math.min(2, size)) }, () => RPS.BLANK)],
-      [...Array.from({ length: Math.min(2, size) }, () => RPS.SCISSORS), ...Array.from({ length: Math.max(0, size - Math.min(2, size)) }, () => RPS.BLANK)],
-      [...Array.from({ length: Math.min(2, size) }, () => RPS.ROCK), ...Array.from({ length: Math.max(0, size - Math.min(2, size)) }, () => RPS.BLANK)]
+      [RPS.PAPER, RPS.PAPER, RPS.BLANK],
+      [RPS.SCISSORS, RPS.SCISSORS, RPS.BLANK],
+      [RPS.ROCK, RPS.ROCK, RPS.BLANK]
     ],
     3: [
-      Array.from({ length: size }, () => RPS.PAPER),
-      Array.from({ length: size }, () => RPS.SCISSORS),
-      Array.from({ length: size }, () => RPS.ROCK)
+      Array.from({ length: CARD_LENGTH }, () => RPS.PAPER),
+      Array.from({ length: CARD_LENGTH }, () => RPS.SCISSORS),
+      Array.from({ length: CARD_LENGTH }, () => RPS.ROCK)
     ]
   };
 
@@ -88,6 +95,53 @@ export class GameUI {
 
   mount(): void {
     this.initialRender();
+  }
+
+  private getPointerRatioForEdge(edge: InsertEdge, event: MouseEvent): number {
+    const rect = this.matrixWrapperElement?.getBoundingClientRect();
+    if (!rect) {
+      return 0.5;
+    }
+
+    if (edge === 'TOP' || edge === 'BOTTOM') {
+      return (event.clientX - rect.left) / rect.width;
+    }
+
+    return (event.clientY - rect.top) / rect.height;
+  }
+
+  private updateEdgePreview(edge: InsertEdge, event: MouseEvent, zone: HTMLElement): void {
+    if (this.isAnimating) return;
+    const state = this.store.getState();
+    if (state.selectedCardIds.length === 0) return;
+    if (!zone.matches(':hover')) return;
+    this.store.updatePreview(edge, this.getPointerRatioForEdge(edge, event));
+    this.render();
+  }
+
+  private getCellMetrics(size: number): { cellSize: number; gap: number; stride: number } {
+    if (!this.matrixElement) {
+      return { cellSize: 0, gap: 0, stride: 0 };
+    }
+
+    const gap = parseFloat(getComputedStyle(this.matrixElement).gap || '0');
+    const cellSize = (this.matrixElement.offsetWidth - gap * (size - 1)) / size;
+    return {
+      cellSize,
+      gap,
+      stride: cellSize + gap
+    };
+  }
+
+  private isInLeftReturnZone(): boolean {
+    if (!this.handElement) {
+      return false;
+    }
+
+    const handRect = this.handElement.getBoundingClientRect();
+    return this.mouseX < handRect.left - 40
+      && this.mouseY >= handRect.top - 60
+      && this.mouseY <= handRect.bottom + 60;
   }
 
   private initialRender(): void {
@@ -193,13 +247,12 @@ export class GameUI {
       dz.className = `drop-zone drop-zone-${edge.toLowerCase()}`;
       dz.setAttribute('data-edge', edge);
       
-      dz.addEventListener('mouseenter', () => {
-        if (this.isAnimating) return;
-        const state = this.store.getState();
-        if (state.selectedCardIds.length > 0) {
-          this.store.updatePreview(edge);
-          this.render();
-        }
+      dz.addEventListener('mouseenter', (event) => {
+        this.updateEdgePreview(edge, event, dz);
+      });
+
+      dz.addEventListener('mousemove', (event) => {
+        this.updateEdgePreview(edge, event, dz);
       });
 
       dz.addEventListener('mouseleave', () => {
@@ -286,6 +339,13 @@ export class GameUI {
       this.mouseY = e.clientY;
       this.updateHeldPosition();
     });
+    window.addEventListener('wheel', (e) => {
+      const state = this.store.getState();
+      if (this.isAnimating || state.selectedCardIds.length === 0) return;
+      e.preventDefault();
+      this.store.flipSelectedCard();
+      this.render();
+    }, { passive: false });
 
     this.render();
   }
@@ -305,32 +365,40 @@ export class GameUI {
     this.isAnimating = true;
     const dz = this.matrixWrapperElement?.querySelector(`.drop-zone-${edge.toLowerCase()}`) as HTMLElement;
     const dzBlocks = dz ? Array.from(dz.querySelectorAll('.card-block')) as HTMLElement[] : [];
-    const lanes: number[][] = [];
-    for (let i = 0; i < size; i += 1) {
+    const buildLaneIndices = (laneIndex: number): number[] => {
       const indices: number[] = [];
       for (let step = 0; step < size; step += 1) {
         let r = 0, c = 0;
-        if (edge === 'TOP') { r = step; c = i; }
-        else if (edge === 'BOTTOM') { r = size - 1 - step; c = i; }
-        else if (edge === 'LEFT') { r = i; c = step; }
-        else if (edge === 'RIGHT') { r = i; c = size - 1 - step; }
+        if (edge === 'TOP') { r = step; c = laneIndex; }
+        else if (edge === 'BOTTOM') { r = size - 1 - step; c = laneIndex; }
+        else if (edge === 'LEFT') { r = laneIndex; c = step; }
+        else if (edge === 'RIGHT') { r = laneIndex; c = size - 1 - step; }
         indices.push(r * size + c);
       }
-      lanes.push(indices);
-    }
+      return indices;
+    };
 
     let visualScore = Number(state.currentScore) || 0;
-    const gap = parseFloat(getComputedStyle(this.matrixElement as HTMLElement).gap || '0');
+    const { stride } = this.getCellMetrics(size);
 
-    for (let i = 0; i < size; i += 1) {
-      const laneIndices = lanes[i];
-      const attackerBlock = dzBlocks[i];
+    for (let cardIndex = 0; cardIndex < selectedCard.symbols.length; cardIndex += 1) {
+      const laneIndex = result.attachmentOffset + cardIndex;
+      const attackerBlock = dzBlocks[cardIndex];
+
+      if (laneIndex < 0 || laneIndex >= size) {
+        if (attackerBlock) {
+          await gsap.to(attackerBlock, { scale: 0, opacity: 0, rotation: (Math.random() - 0.5) * 180, duration: 0.3, ease: 'power2.in' });
+        }
+        continue;
+      }
+
+      const laneIndices = buildLaneIndices(laneIndex);
       const firstCellIdx = laneIndices[0];
       const firstCellPos = { r: Math.floor(firstCellIdx / size), c: firstCellIdx % size };
 
       const laneShift = result.shiftedLanes?.find((shift) => {
-        if (edge === 'TOP' || edge === 'BOTTOM') return shift.type === 'col' && shift.index === i;
-        if (edge === 'LEFT' || edge === 'RIGHT') return shift.type === 'row' && shift.index === i;
+        if (edge === 'TOP' || edge === 'BOTTOM') return shift.type === 'col' && shift.index === laneIndex;
+        if (edge === 'LEFT' || edge === 'RIGHT') return shift.type === 'row' && shift.index === laneIndex;
         return false;
       });
 
@@ -338,12 +406,8 @@ export class GameUI {
         const firstCell = this.matrixElement?.children[firstCellIdx] as HTMLElement;
         const startRect = attackerBlock.getBoundingClientRect();
         const endRect = firstCell.getBoundingClientRect();
-        let localDx = endRect.left - startRect.left;
-        let localDy = endRect.top - startRect.top;
-        if (edge === 'TOP' || edge === 'BOTTOM') {
-          localDx = -(endRect.top - startRect.top);
-          localDy = (endRect.left - startRect.left);
-        }
+        const localDx = endRect.left - startRect.left;
+        const localDy = endRect.top - startRect.top;
 
         const tl = gsap.timeline();
         await tl.to(attackerBlock, { x: localDx * 0.4, y: localDy * 0.4, duration: 0.15, ease: 'power2.out' })
@@ -353,7 +417,7 @@ export class GameUI {
 
         gsap.fromTo(firstCell, { filter: 'brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)' }, { filter: 'none', duration: 0.5 });
 
-        const attackerType = selectedCard.symbols[i];
+        const attackerType = selectedCard.symbols[cardIndex];
         const penaltyVal = Number(SCORE_WEIGHTS[attackerType]) || 0;
         if (penaltyVal > 0) {
           this.showScorePopup(-penaltyVal, firstCellIdx, true);
@@ -366,12 +430,9 @@ export class GameUI {
         }
 
         const laneCells = laneIndices.map((idx) => this.matrixElement?.children[idx] as HTMLElement);
-        const shiftAmount = edge === 'TOP' || edge === 'BOTTOM'
-          ? (this.matrixElement!.offsetWidth / size) + gap
-          : (this.matrixElement!.offsetHeight / size) + gap;
         let sx = 0, sy = 0;
-        if (laneShift.type === 'row') sx = laneShift.direction * shiftAmount;
-        else sy = laneShift.direction * shiftAmount;
+        if (laneShift.type === 'row') sx = laneShift.direction * stride;
+        else sy = laneShift.direction * stride;
 
         const shiftPromises = laneCells.map((cell) => gsap.to(cell, {
           x: sx,
@@ -399,12 +460,8 @@ export class GameUI {
         if (firstCell) {
           const startRect = attackerBlock.getBoundingClientRect();
           const endRect = firstCell.getBoundingClientRect();
-          let localDx = endRect.left - startRect.left;
-          let localDy = endRect.top - startRect.top;
-          if (edge === 'TOP' || edge === 'BOTTOM') {
-            localDx = -(endRect.top - startRect.top);
-            localDy = (endRect.left - startRect.left);
-          }
+          const localDx = endRect.left - startRect.left;
+          const localDy = endRect.top - startRect.top;
           await gsap.to(attackerBlock, { x: localDx, y: localDy, duration: 0.4, ease: 'back.inOut(2)' });
         }
       } else if (attackerBlock) {
@@ -496,35 +553,40 @@ export class GameUI {
       this.mouseX <= handRect.right &&
       this.mouseY >= handRect.top - 24 &&
       this.mouseY <= handRect.bottom + 24;
+    const shouldReturnToHand = isInsideReturnZone || this.isInLeftReturnZone();
 
-    if (!isInsideReturnZone) {
-      if (!cardElement.classList.contains('held')) {
-        cardElement.classList.add('held');
-        if (state.selectedCardIds.length > 1) {
-          this.store.selectCard(lastId);
-          this.renderHand(this.store.getState());
-        }
+    if (shouldReturnToHand) {
+      if (state.preview) {
+        this.store.updatePreview(null);
       }
-      gsap.set(cardElement, {
-        left: this.mouseX,
-        top: this.mouseY,
-        x: 0,
-        y: 0,
-        xPercent: -50,
-        yPercent: -50,
-        rotation: 0,
-        opacity: state.preview ? 0 : 1,
-        pointerEvents: state.preview ? 'none' : 'auto'
-      });
-    } else {
-      if (cardElement.classList.contains('held')) {
+      if (cardElement.classList.contains('held') || state.preview) {
         cardElement.classList.remove('held');
         cardElement.style.left = '';
         cardElement.style.top = '';
-        gsap.set(cardElement, { opacity: 1, pointerEvents: 'auto' });
-        this.renderHand(state);
+        gsap.set(cardElement, { clearProps: 'all' });
+        this.render();
+      }
+      return;
+    }
+
+    if (!cardElement.classList.contains('held')) {
+      cardElement.classList.add('held');
+      if (state.selectedCardIds.length > 1) {
+        this.store.selectCard(lastId);
+        this.renderHand(this.store.getState());
       }
     }
+    gsap.set(cardElement, {
+      left: this.mouseX,
+      top: this.mouseY,
+      x: 0,
+      y: 0,
+      xPercent: -50,
+      yPercent: -50,
+      rotation: 0,
+      opacity: state.preview ? 0 : 1,
+      pointerEvents: state.preview ? 'none' : 'auto'
+    });
   }
 
   private showPileModal(type: 'DECK' | 'DISCARD'): void {
@@ -557,7 +619,7 @@ export class GameUI {
 
     if (state.status === 'CHOOSE_DECK') {
       const previewGroups = [1, 2, 3].map((type) => {
-        const cards = createPreviewDeckCards(type, state.matrix.size);
+        const cards = createPreviewDeckCards(type);
         return `
           <div class="deck-option" data-type="${type}">
             <h3>${type === 1 ? 'Balanced' : type === 2 ? 'Multi-hit' : 'Hardcore'}</h3>
@@ -636,8 +698,8 @@ export class GameUI {
     const size = state.matrix.size;
     const lastPreviewEdge = this.store.getLastPreviewEdge();
 
-    this.root.style.setProperty('--matrix-size', String(size));
-    this.root.style.setProperty('--card-length', String(size));
+    document.documentElement.style.setProperty('--matrix-size', String(size));
+    document.documentElement.style.setProperty('--card-length', String(CARD_LENGTH));
 
     const levelEl = document.getElementById('ui-level'); if (levelEl) levelEl.textContent = `${state.currentLevel}/3`;
     const levelNameEl = document.getElementById('ui-level-name'); if (levelNameEl) levelNameEl.textContent = state.levelName;
@@ -700,14 +762,69 @@ export class GameUI {
       const dz = this.matrixWrapperElement?.querySelector(`.drop-zone-${edge.toLowerCase()}`) as HTMLElement;
       if (!dz) return;
       dz.innerHTML = '';
-      if (state.preview && lastPreviewEdge === edge) {
+    });
+
+    if (this.previewBoxElement) {
+      const { cellSize, gap, stride } = this.getCellMetrics(size);
+      const matrixExtent = this.matrixElement?.offsetWidth ?? 0;
+      this.previewBoxElement.innerHTML = '';
+      this.previewBoxElement.style.display = state.preview ? 'block' : 'none';
+      this.previewBoxElement.style.inset = '0';
+
+      if (state.preview && lastPreviewEdge) {
         const selectedCard = state.hand.find((card) => card.id === state.selectedCardIds[state.selectedCardIds.length - 1]);
         if (selectedCard) {
-          const cardContainer = createCardElement(selectedCard, 'preview-card');
-          dz.appendChild(cardContainer);
+          const overlapCount = selectedCard.symbols.length;
+          const guide = document.createElement('div');
+          guide.className = 'preview-guide';
+          guide.style.position = 'absolute';
+
+          const cardContainer = createCardElement(
+            selectedCard,
+            'preview-card',
+            lastPreviewEdge === 'TOP' || lastPreviewEdge === 'BOTTOM' ? 'horizontal' : 'vertical'
+          );
+          cardContainer.style.position = 'absolute';
+
+          if (lastPreviewEdge === 'TOP') {
+            const guideLeft = Math.max(0, state.preview.attachmentOffset) * stride;
+            guide.style.left = `${guideLeft}px`;
+            guide.style.top = `${-stride}px`;
+            guide.style.width = `${overlapCount * stride - gap}px`;
+            guide.style.height = `${cellSize}px`;
+            cardContainer.style.left = `${state.preview.attachmentOffset * stride}px`;
+            cardContainer.style.top = `${-stride}px`;
+          } else if (lastPreviewEdge === 'BOTTOM') {
+            const guideLeft = Math.max(0, state.preview.attachmentOffset) * stride;
+            guide.style.left = `${guideLeft}px`;
+            guide.style.top = `${matrixExtent + gap}px`;
+            guide.style.width = `${overlapCount * stride - gap}px`;
+            guide.style.height = `${cellSize}px`;
+            cardContainer.style.left = `${state.preview.attachmentOffset * stride}px`;
+            cardContainer.style.top = `${matrixExtent + gap}px`;
+          } else if (lastPreviewEdge === 'LEFT') {
+            const guideTop = Math.max(0, state.preview.attachmentOffset) * stride;
+            guide.style.left = `${-stride}px`;
+            guide.style.top = `${guideTop}px`;
+            guide.style.width = `${cellSize}px`;
+            guide.style.height = `${overlapCount * stride - gap}px`;
+            cardContainer.style.left = `${-stride}px`;
+            cardContainer.style.top = `${state.preview.attachmentOffset * stride}px`;
+          } else {
+            const guideTop = Math.max(0, state.preview.attachmentOffset) * stride;
+            guide.style.left = `${matrixExtent + gap}px`;
+            guide.style.top = `${guideTop}px`;
+            guide.style.width = `${cellSize}px`;
+            guide.style.height = `${overlapCount * stride - gap}px`;
+            cardContainer.style.left = `${matrixExtent + gap}px`;
+            cardContainer.style.top = `${state.preview.attachmentOffset * stride}px`;
+          }
+
+          this.previewBoxElement.appendChild(guide);
+          this.previewBoxElement.appendChild(cardContainer);
         }
       }
-    });
+    }
 
     this.renderHand(state);
     this.updateHeldPosition();
@@ -720,7 +837,7 @@ export class GameUI {
     handElement.innerHTML = '';
 
     state.hand.forEach((card, index) => {
-      const cardElement = createCardElement(card);
+      const cardElement = createCardElement(card, '', 'vertical', true);
       cardElement.setAttribute('data-card-id', card.id);
       cardElement.addEventListener('click', (e) => {
         e.stopPropagation();

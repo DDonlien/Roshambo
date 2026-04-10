@@ -20,6 +20,7 @@ export interface LaneResult {
   penalty: number;
   laneScores: number[];
   replacedCells: { r: number; c: number }[];
+  attachmentOffset: number;
   shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[];
 }
 
@@ -57,28 +58,47 @@ function shiftLane(grid: RPS[][], index: number, type: 'row' | 'col', direction:
   }
 }
 
+export function resolveAttachmentOffset(matrixSize: number, cardLength: number, pointerRatio: number): number {
+  const minOffset = Math.min(0, matrixSize - cardLength);
+  const maxOffset = Math.max(0, matrixSize - cardLength);
+
+  if (minOffset === maxOffset) {
+    return minOffset;
+  }
+
+  const placementCount = maxOffset - minOffset + 1;
+  const clampedRatio = Math.min(Math.max(pointerRatio, 0), 0.999999);
+  const placementIndex = Math.min(placementCount - 1, Math.floor(clampedRatio * placementCount));
+  return minOffset + placementIndex;
+}
+
 export function executeLaneClash(
   currentGrid: RPS[][],
   edge: InsertEdge,
-  card: Card
+  card: Card,
+  attachmentOffset: number
 ): LaneResult {
   const newGrid = currentGrid.map((row) => [...row]);
   const size = newGrid.length;
-  const laneCount = Math.min(size, card.symbols.length);
   let totalScore = 0;
   let penalty = 0;
-  const laneScores: number[] = Array.from({ length: laneCount }, () => 0);
+  const laneScores: number[] = Array.from({ length: card.symbols.length }, () => 0);
   const replacedCells: { r: number; c: number }[] = [];
   const shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[] = [];
 
-  for (let i = 0; i < laneCount; i += 1) {
-    const attacker = card.symbols[i];
+  for (let cardIndex = 0; cardIndex < card.symbols.length; cardIndex += 1) {
+    const laneIndex = attachmentOffset + cardIndex;
+    if (laneIndex < 0 || laneIndex >= size) {
+      continue;
+    }
+
+    const attacker = card.symbols[cardIndex];
     let r = 0, c = 0, dr = 0, dc = 0;
 
-    if (edge === 'TOP') { r = 0; c = i; dr = 1; dc = 0; }
-    else if (edge === 'BOTTOM') { r = size - 1; c = i; dr = -1; dc = 0; }
-    else if (edge === 'LEFT') { r = i; c = 0; dr = 0; dc = 1; }
-    else if (edge === 'RIGHT') { r = i; c = size - 1; dr = 0; dc = -1; }
+    if (edge === 'TOP') { r = 0; c = laneIndex; dr = 1; dc = 0; }
+    else if (edge === 'BOTTOM') { r = size - 1; c = laneIndex; dr = -1; dc = 0; }
+    else if (edge === 'LEFT') { r = laneIndex; c = 0; dr = 0; dc = 1; }
+    else if (edge === 'RIGHT') { r = laneIndex; c = size - 1; dr = 0; dc = -1; }
 
     const defender = newGrid[r][c];
     const attackerLoses = defender !== RPS.BLANK && (attacker === RPS.BLANK || WIN_MAP[defender] === attacker);
@@ -89,12 +109,12 @@ export function executeLaneClash(
 
       if (edge === 'LEFT' || edge === 'RIGHT') {
         const shiftDir: 1 | -1 = edge === 'LEFT' ? -1 : 1;
-        shiftLane(newGrid, i, 'row', shiftDir);
-        shiftedLanes.push({ index: i, type: 'row', direction: shiftDir });
+        shiftLane(newGrid, laneIndex, 'row', shiftDir);
+        shiftedLanes.push({ index: laneIndex, type: 'row', direction: shiftDir });
       } else {
         const shiftDir: 1 | -1 = edge === 'TOP' ? -1 : 1;
-        shiftLane(newGrid, i, 'col', shiftDir);
-        shiftedLanes.push({ index: i, type: 'col', direction: shiftDir });
+        shiftLane(newGrid, laneIndex, 'col', shiftDir);
+        shiftedLanes.push({ index: laneIndex, type: 'col', direction: shiftDir });
       }
     } else if (attacker !== RPS.BLANK) {
       for (let step = 0; step < size; step += 1) {
@@ -104,7 +124,7 @@ export function executeLaneClash(
         if (attackerWins) {
           const gain = Number(SCORE_WEIGHTS[currentDefender]) || 0;
           totalScore += gain;
-          laneScores[i] += gain;
+          laneScores[cardIndex] += gain;
           newGrid[r][c] = attacker;
           replacedCells.push({ r, c });
           r += dr; c += dc;
@@ -122,6 +142,7 @@ export function executeLaneClash(
     penalty: penalty || 0, 
     laneScores, 
     replacedCells, 
+    attachmentOffset,
     shiftedLanes 
   };
 }

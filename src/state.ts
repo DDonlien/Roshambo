@@ -1,5 +1,5 @@
-import { createEmptyGrid, executeLaneClash } from './logic';
-import { Card, ClashResult, GameConfig, GameState, InitialConfig, InsertEdge, LevelConfig, RPS } from './types';
+import { createEmptyGrid, executeLaneClash, resolveAttachmentOffset } from './logic';
+import { CARD_LENGTH, Card, ClashResult, GameConfig, GameState, InitialConfig, InsertEdge, LevelConfig, RPS } from './types';
 
 const SYMBOL_POOL: readonly RPS[] = [RPS.ROCK, RPS.SCISSORS, RPS.PAPER, RPS.BLANK];
 
@@ -60,13 +60,13 @@ function randomGrid(size: number): RPS[][] {
   return grid;
 }
 
-function createDeck(type: number, size: number): Card[] {
+function createDeck(type: number): Card[] {
   const codes: string[] = [];
-  const repeatCount = type === 1 ? 1 : type === 2 ? Math.min(2, size) : size;
+  const repeatCount = type === 1 ? 1 : type === 2 ? 2 : CARD_LENGTH;
   const symbolCodes = ['1', '3', '4'];
 
   symbolCodes.forEach((symbolCode) => {
-    const code = symbolCode.repeat(repeatCount).padEnd(size, '0');
+    const code = symbolCode.repeat(repeatCount).padEnd(CARD_LENGTH, '0');
     codes.push(code, code, code);
   });
 
@@ -86,6 +86,8 @@ export class GameStore {
   private initialConfig: InitialConfig = DEFAULT_INITIAL_CONFIG;
   private selectedDeckType = 1;
   private lastPreviewEdge: InsertEdge | null = null;
+  private lastPreviewOffset = 0;
+  private lastPreviewPointerRatio = 0.5;
 
   constructor(_config: Partial<GameConfig> = {}) {
     this.state = this.createInitialState();
@@ -151,7 +153,7 @@ export class GameStore {
   }
 
   private buildDeckForCurrentLevel(): void {
-    const fullDeck = createDeck(this.selectedDeckType, this.state.matrix.size);
+    const fullDeck = createDeck(this.selectedDeckType);
     this.state.hand = fullDeck.slice(0, 5);
     this.state.deck = fullDeck.slice(5);
     this.state.discardPile = [];
@@ -247,6 +249,8 @@ export class GameStore {
     }
     this.state.preview = null;
     this.lastPreviewEdge = null;
+    this.lastPreviewOffset = 0;
+    this.lastPreviewPointerRatio = 0.5;
   }
 
   flipSelectedCard(): void {
@@ -261,14 +265,19 @@ export class GameStore {
       const edge = this.lastPreviewEdge;
       if (edge) {
         this.lastPreviewEdge = null;
-        this.updatePreview(edge);
+        this.updatePreview(edge, this.lastPreviewPointerRatio);
       }
     }
   }
 
-  updatePreview(edge: InsertEdge | null): void {
-    if (this.lastPreviewEdge === edge && (this.state.preview !== null || edge === null)) return;
+  updatePreview(edge: InsertEdge | null, pointerRatio = 0.5): void {
+    this.lastPreviewPointerRatio = pointerRatio;
+    const nextOffset = edge
+      ? resolveAttachmentOffset(this.state.matrix.size, CARD_LENGTH, pointerRatio)
+      : 0;
+    if (this.lastPreviewEdge === edge && this.lastPreviewOffset === nextOffset && (this.state.preview !== null || edge === null)) return;
     this.lastPreviewEdge = edge;
+    this.lastPreviewOffset = nextOffset;
     if (this.state.status !== 'PLAYING' || this.state.selectedCardIds.length === 0 || !edge) {
       this.state.preview = null;
       return;
@@ -279,7 +288,7 @@ export class GameStore {
       this.state.preview = null;
       return;
     }
-    const res = executeLaneClash(this.state.matrix.grid, edge, selectedCard);
+    const res = executeLaneClash(this.state.matrix.grid, edge, selectedCard, this.lastPreviewOffset);
     this.state.preview = { ...res, insertedCardId: selectedCard.id };
   }
 
@@ -288,7 +297,7 @@ export class GameStore {
     const lastSelected = this.state.selectedCardIds[this.state.selectedCardIds.length - 1];
     const selectedCard = this.state.hand.find((card) => card.id === lastSelected);
     if (!selectedCard) return null;
-    const res = executeLaneClash(this.state.matrix.grid, edge, selectedCard);
+    const res = executeLaneClash(this.state.matrix.grid, edge, selectedCard, this.lastPreviewOffset);
     return { ...res, insertedCardId: selectedCard.id };
   }
 
@@ -306,6 +315,8 @@ export class GameStore {
     this.state.selectedCardIds = [];
     this.state.preview = null;
     this.lastPreviewEdge = null;
+    this.lastPreviewOffset = 0;
+    this.lastPreviewPointerRatio = 0.5;
     this.checkLevelWin();
     this.resolveRoundEnd();
   }
@@ -332,6 +343,8 @@ export class GameStore {
     this.state.lastClash = null;
     this.state.lastInterestEarned = 0;
     this.lastPreviewEdge = null;
+    this.lastPreviewOffset = 0;
+    this.lastPreviewPointerRatio = 0.5;
     this.buildDeckForCurrentLevel();
   }
 
@@ -345,6 +358,8 @@ export class GameStore {
     this.state.preview = null;
     this.state.selectedCardIds = [];
     this.lastPreviewEdge = null;
+    this.lastPreviewOffset = 0;
+    this.lastPreviewPointerRatio = 0.5;
   }
 
   dealHand(): void {
@@ -365,6 +380,8 @@ export class GameStore {
       this.state.selectedCardIds = [];
       this.state.preview = null;
       this.lastPreviewEdge = null;
+      this.lastPreviewOffset = 0;
+      this.lastPreviewPointerRatio = 0.5;
     } else if (this.state.hand.length < 5 && this.state.deck.length > 0) {
       const drawn = this.state.deck.shift();
       if (!drawn) return;
@@ -383,6 +400,8 @@ export class GameStore {
   resetGame(): void {
     this.selectedDeckType = 1;
     this.lastPreviewEdge = null;
+    this.lastPreviewOffset = 0;
+    this.lastPreviewPointerRatio = 0.5;
     this.state = this.createInitialState();
   }
 }

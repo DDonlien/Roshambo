@@ -5,6 +5,8 @@ export enum RPS {
   BLANK = 'BLANK'
 }
 
+export const CARD_LENGTH = 3;
+
 export type LevelIcon = 'Rock' | 'Paper' | 'Scissors';
 
 export interface Card {
@@ -27,6 +29,7 @@ export interface ClashResult {
   laneScores: number[];
   replacedCells: { r: number; c: number }[];
   insertedCardId: string;
+  attachmentOffset: number;
   shiftedLanes?: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[];
 }
 
