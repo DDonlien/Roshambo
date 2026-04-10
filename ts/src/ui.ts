@@ -104,26 +104,6 @@ const SCORE_WEIGHTS: Record<RPS, number> = {
   [RPS.BLANK]: 0
 };
 
-function blockAsset(symbol: RPS): string {
-  const nameMap: Record<RPS, string> = {
-    [RPS.ROCK]: 'Rock',
-    [RPS.SCISSORS]: 'Scissors',
-    [RPS.PAPER]: 'Paper',
-    [RPS.BLANK]: 'Blank'
-  };
-  return `Sketch/BlockType=${nameMap[symbol]}.png`;
-}
-
-function iconAsset(icon: LevelIcon): string {
-  return `Sketch/icon_${icon}.png`;
-}
-
-function cardClassName(isHandCard: boolean): string {
-  return `render-card${isHandCard ? ' card-asset' : ''}`;
-}
-
-type CardOrientation = 'vertical' | 'horizontal';
-
 function getCardFullAsset(card: Card): string {
   const map: Record<string, string> = {
     'ROCK': '0',
@@ -131,9 +111,32 @@ function getCardFullAsset(card: Card): string {
     'PAPER': '3',
     'BLANK': '4'
   };
-  const key = card.symbols.map(s => map[s]).join('');
-  return `Sketch/CardType=${key}.png`;
+  // Reverse the array when generating the key because the assets are named top-to-bottom
+  // but Card.symbols might be stored bottom-to-top (e.g. 004 instead of 400).
+  const key = [...card.symbols].reverse().map(s => map[s]).join('');
+  // Fix path for Vite/GitHub pages by adding leading slash or using relative path from root
+  return `./Sketch/CardType=${key}.png`;
 }
+
+function blockAsset(symbol: RPS): string {
+  const nameMap: Record<RPS, string> = {
+    [RPS.ROCK]: 'Rock',
+    [RPS.SCISSORS]: 'Scissors',
+    [RPS.PAPER]: 'Paper',
+    [RPS.BLANK]: 'Blank'
+  };
+  return `./Sketch/BlockType=${nameMap[symbol]}.png`;
+}
+
+function iconAsset(icon: LevelIcon): string {
+  return `./Sketch/icon_${icon}.png`;
+}
+
+function cardClassName(isHandCard: boolean): string {
+  return `render-card${isHandCard ? ' card-asset' : ''}`;
+}
+
+type CardOrientation = 'vertical' | 'horizontal';
 
 function createCardElement(
   card: Card,
