@@ -1,5 +1,6 @@
 import { GameStore } from './state';
 import { CARD_LENGTH, Card, GameState, InsertEdge, LevelIcon, RPS } from './types';
+import { toShopViewOffers, toSpecialCardViews } from './special-cards/registry';
 import { gsap } from 'gsap';
 
 type Lang = 'EN' | 'ZH' | 'ZH_TW' | 'JA';
@@ -17,7 +18,7 @@ const I18N = {
     STAGE: 'STAGE',
     SCORE: 'SCORE',
     CHIPS: 'CHIPS',
-    SHUFFLE_MATRIX: 'SHUFFLE MATRIX',
+    SHUFFLE_MATRIX: 'SHUFFLE',
     DEAL_CARD: 'DEAL CARD',
     DECK: 'DECK',
     WASTED: 'WASTED',
@@ -27,11 +28,23 @@ const I18N = {
     RUBIK: 'Rubik',
     MASTER: 'Master',
     CHOOSE_DECK: 'Choose your deck',
-    LEVEL_WON: 'Level Cleared!',
+    LEVEL_WON: 'Round Cleared!',
     GAME_OVER: 'Game Over',
     WIN: 'You Win!',
     NEXT_LEVEL: 'Next Level',
-    RESTART: 'Restart Game'
+    RESTART: 'Restart Game',
+    ROUND_REWARD: 'Reward Summary',
+    ENTER_SHOP: 'Enter Shop',
+    SHOP: 'Shop',
+    CONTINUE: 'Continue',
+    LEVEL_REWARD: 'Level Reward',
+    INTEREST_REWARD: 'Interest',
+    TOTAL_REWARD: 'Total',
+    BUY: 'Buy',
+    PURCHASED: 'Purchased',
+    SPECIAL_CARDS: 'Special Cards',
+    FINAL_RUN_CLEAR: 'You cleared all 9 stages and 27 levels!',
+    FINAL_CHIPS: 'Final Chips'
   },
   ZH: {
     STAGE: '关卡',
@@ -51,7 +64,19 @@ const I18N = {
     GAME_OVER: '游戏结束',
     WIN: '你赢了！',
     NEXT_LEVEL: '下一关',
-    RESTART: '重新开始'
+    RESTART: '重新开始',
+    ROUND_REWARD: '奖励结算',
+    ENTER_SHOP: '进入商店',
+    SHOP: '商店',
+    CONTINUE: '继续',
+    LEVEL_REWARD: '关卡奖励',
+    INTEREST_REWARD: '利息奖励',
+    TOTAL_REWARD: '总奖励',
+    BUY: '购买',
+    PURCHASED: '已购买',
+    SPECIAL_CARDS: '特殊牌',
+    FINAL_RUN_CLEAR: '你已通关全部 9 大关与 27 个关卡！',
+    FINAL_CHIPS: '最终筹码'
   },
   ZH_TW: {
     STAGE: '關卡',
@@ -71,7 +96,19 @@ const I18N = {
     GAME_OVER: '遊戲結束',
     WIN: '你贏了！',
     NEXT_LEVEL: '下一關',
-    RESTART: '重新開始'
+    RESTART: '重新開始',
+    ROUND_REWARD: '獎勵結算',
+    ENTER_SHOP: '進入商店',
+    SHOP: '商店',
+    CONTINUE: '繼續',
+    LEVEL_REWARD: '關卡獎勵',
+    INTEREST_REWARD: '利息獎勵',
+    TOTAL_REWARD: '總獎勵',
+    BUY: '購買',
+    PURCHASED: '已購買',
+    SPECIAL_CARDS: '特殊牌',
+    FINAL_RUN_CLEAR: '你已通關全部 9 大關與 27 個關卡！',
+    FINAL_CHIPS: '最終籌碼'
   },
   JA: {
     STAGE: 'ステージ',
@@ -91,7 +128,19 @@ const I18N = {
     GAME_OVER: 'ゲームオーバー',
     WIN: 'クリア！',
     NEXT_LEVEL: '次のステージ',
-    RESTART: 'リスタート'
+    RESTART: 'リスタート',
+    ROUND_REWARD: '報酬',
+    ENTER_SHOP: 'ショップへ',
+    SHOP: 'ショップ',
+    CONTINUE: '続ける',
+    LEVEL_REWARD: 'ステージ報酬',
+    INTEREST_REWARD: '利息',
+    TOTAL_REWARD: '合計',
+    BUY: '購入',
+    PURCHASED: '購入済み',
+    SPECIAL_CARDS: '特殊カード',
+    FINAL_RUN_CLEAR: '9 ステージ、27 レベルを制覇！',
+    FINAL_CHIPS: '最終チップ'
   }
 };
 
@@ -101,14 +150,16 @@ const SCORE_WEIGHTS: Record<RPS, number> = {
   [RPS.ROCK]: 4,
   [RPS.SCISSORS]: 3,
   [RPS.PAPER]: 1,
-  [RPS.BLANK]: 0
+  [RPS.BLANK]: 0,
+  [RPS.TRICOLOR]: 2
 };
 
 let blockAssetMap: Record<string, string> = {
   'ROCK': 'Rock',
   'SCISSORS': 'Scissors',
   'PAPER': 'Paper',
-  'BLANK': 'Blank'
+  'BLANK': 'Blank',
+  'TRICOLOR': 'Tricolor'
 };
 
 // Initial fallback map just in case CSV fails to load
@@ -117,8 +168,8 @@ let cardAssetMap: Record<string, string> = {};
 export async function loadAssetMaps(): Promise<void> {
   try {
     const [blockRes, cardRes] = await Promise.all([
-      fetch('./blockasset.csv'),
-      fetch('./cardasset.csv')
+      fetch('/definition/blockasset.csv'),
+      fetch('/definition/cardasset.csv')
     ]);
     
     if (blockRes.ok) {
@@ -147,7 +198,8 @@ function getCardFullAsset(card: Card): string {
     'ROCK': '4',
     'SCISSORS': '3',
     'PAPER': '1',
-    'BLANK': '0'
+    'BLANK': '0',
+    'TRICOLOR': '7'
   };
 
   // Always get the base un-flipped symbols to map to the single physical asset file
@@ -162,7 +214,19 @@ function getCardFullAsset(card: Card): string {
   return cardAssetMap[code] || `./Sketch/CardType=${code}.png`;
 }
 
+function hasTricolor(card: Card): boolean {
+  return card.symbols.includes(RPS.TRICOLOR);
+}
+
+function tricolorDataUrl(): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5252"/><stop offset="0.5" stop-color="#4fc3f7"/><stop offset="1" stop-color="#81c784"/></linearGradient></defs><rect x="6" y="6" width="88" height="88" rx="14" fill="rgba(0,0,0,0.15)" stroke="url(#g)" stroke-width="6"/><path d="M50 18 L82 74 H18 Z" fill="#ff5252" opacity="0.78"/><path d="M18 30 L82 30 L50 86 Z" fill="#4fc3f7" opacity="0.6"/><circle cx="50" cy="50" r="16" fill="#81c784" opacity="0.72"/></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 function blockAsset(symbol: RPS): string {
+  if (symbol === RPS.TRICOLOR) {
+    return tricolorDataUrl();
+  }
   // Look up the full path in the CSV map.
   return blockAssetMap[symbol] || `./Sketch/BlockType=Blank.png`;
 }
@@ -187,7 +251,7 @@ function createCardElement(
   element.className = `${cardClassName(isHandCard)} ${orientation === 'horizontal' ? 'render-card-horizontal' : ''} ${extraClass}`.trim();
   element.style.setProperty('--card-block-count', String(card.symbols.length));
   
-  if (isHandCard || extraClass.includes('modal-card')) {
+  if ((isHandCard || extraClass.includes('modal-card')) && !hasTricolor(card)) {
     element.classList.add('full-asset');
     const image = document.createElement('img');
     image.className = 'card-full-image';
@@ -205,6 +269,14 @@ function createCardElement(
 }
 
 function createCardMarkup(card: Card): string {
+  if (hasTricolor(card)) {
+    const blocks = card.symbols.map((symbol) => `<img class="card-block" src="${blockAsset(symbol)}">`).join('');
+    return `
+      <div class="render-card modal-card" style="--card-block-count:${card.symbols.length}">
+        ${blocks}
+      </div>
+    `;
+  }
   return `
     <div class="render-card modal-card full-asset" style="--card-block-count:${card.symbols.length}">
       <img class="card-full-image" src="${getCardFullAsset(card)}">
@@ -212,29 +284,20 @@ function createCardMarkup(card: Card): string {
   `;
 }
 
-function createPreviewDeckCards(type: number): Card[] {
-  const symbolSets: Record<number, RPS[][]> = {
-    1: [
-      [RPS.PAPER, RPS.BLANK, RPS.BLANK],
-      [RPS.SCISSORS, RPS.BLANK, RPS.BLANK],
-      [RPS.ROCK, RPS.BLANK, RPS.BLANK]
-    ],
-    2: [
-      [RPS.PAPER, RPS.PAPER, RPS.BLANK],
-      [RPS.SCISSORS, RPS.SCISSORS, RPS.BLANK],
-      [RPS.ROCK, RPS.ROCK, RPS.BLANK]
-    ],
-    3: [
-      Array.from({ length: CARD_LENGTH }, () => RPS.PAPER),
-      Array.from({ length: CARD_LENGTH }, () => RPS.SCISSORS),
-      Array.from({ length: CARD_LENGTH }, () => RPS.ROCK)
-    ]
-  };
-
-  return (symbolSets[type] ?? symbolSets[1]).map((symbols, index) => ({
-    id: `preview-${type}-${index}`,
-    symbols
-  }));
+function createSpecialCardMarkup(
+  name: string,
+  shortName: string,
+  description: string,
+  accent: string,
+  extraClass = ''
+): string {
+  return `
+    <div class="special-card ${extraClass}" style="--special-accent:${accent}">
+      <div class="special-card-name">${name}</div>
+      <div class="special-card-short">${shortName}</div>
+      <div class="special-card-desc">${description}</div>
+    </div>
+  `;
 }
 
 export class GameUI {
@@ -348,7 +411,7 @@ export class GameUI {
       <div class="stage-box">
         <img id="ui-level-icon" class="stage-icon" src="${iconAsset('pocket')}" alt="stage">
         <div class="stage-copy">
-          <span class="stage-label" id="ui-level">STAGE 1/3</span>
+          <span class="stage-label" id="ui-level">STAGE 1/9</span>
           <span class="stage-name" id="ui-level-name">Pocket</span>
         </div>
         <div class="stage-goal" id="ui-goal">10</div>
@@ -366,7 +429,7 @@ export class GameUI {
       </div>
       <div class="deck-actions">
         <div class="deck-btn" id="ui-btn-shuffle">
-          <span class="label" id="ui-shuffle-label">SHUFFLE MATRIX</span>
+          <span class="label" id="ui-shuffle-label">SHUFFLE</span>
           <div class="val-box"><span class="val blue" id="ui-shuffle-count">4</span><span class="val-max"> / 4</span></div>
         </div>
         <div class="deck-btn" id="ui-btn-deal">
@@ -387,7 +450,7 @@ export class GameUI {
 
     const relics = document.createElement('div');
     relics.className = 'relics-row';
-    relics.innerHTML = '<div class="relic-slot"></div><div class="relic-slot"></div>';
+    relics.id = 'ui-special-cards';
     playArea.appendChild(relics);
 
     const matrixWrapper = document.createElement('div');
@@ -790,7 +853,7 @@ export class GameUI {
       cardElement.classList.add('held');
       gsap.killTweensOf(cardElement);
       if (state.selectedCardIds.length > 1) {
-        this.store.selectCard(lastId);
+        this.store.focusCard(lastId);
         this.renderHand(this.store.getState());
       }
     }
@@ -826,6 +889,33 @@ export class GameUI {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   }
 
+  private renderSpecialCards(state: GameState): void {
+    const container = document.getElementById('ui-special-cards');
+    if (!container) return;
+
+    const cards = toSpecialCardViews(state.specialCards);
+    if (cards.length === 0) {
+      container.innerHTML = `
+        <div class="special-cards-header">${I18N[currentLang].SPECIAL_CARDS}</div>
+        <div class="special-card-empty">No Specials Yet</div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="special-cards-header">${I18N[currentLang].SPECIAL_CARDS}</div>
+      <div class="special-cards-list">
+        ${cards.map((card) => createSpecialCardMarkup(
+          card.definition.name,
+          card.definition.shortName,
+          card.definition.description,
+          card.definition.accent,
+          'special-card-mini'
+        )).join('')}
+      </div>
+    `;
+  }
+
   private renderStatusOverlay(state: GameState): void {
     this.root.querySelector('.status-overlay')?.remove();
 
@@ -835,11 +925,12 @@ export class GameUI {
     overlay.className = 'modal-overlay status-overlay';
 
     if (state.status === 'CHOOSE_DECK') {
-      const previewGroups = [1, 2, 3].map((type) => {
-        const cards = createPreviewDeckCards(type);
+      const decks = this.store.getDeckDefinitions();
+      const previewGroups = decks.map((deck) => {
+        const cards = this.store.getDeckPreviewCards(deck.id);
         return `
-          <div class="deck-option" data-type="${type}">
-            <h3>${type === 1 ? 'Balanced' : type === 2 ? 'Multi-hit' : 'Hardcore'}</h3>
+          <div class="deck-option" data-deck-id="${deck.id}">
+            <h3>${deck.name}</h3>
             <div class="preview-cards">
               ${cards.map((card) => createCardMarkup(card)).join('')}
             </div>
@@ -856,24 +947,75 @@ export class GameUI {
       this.root.appendChild(overlay);
       overlay.querySelectorAll('.deck-option').forEach((option) => {
         option.addEventListener('click', () => {
-          this.store.chooseDeck(parseInt(option.getAttribute('data-type') || '1', 10));
+          const deckId = option.getAttribute('data-deck-id');
+          if (!deckId) return;
+          this.store.chooseDeckById(deckId);
           this.render();
         });
       });
       return;
     }
 
-    if (state.status === 'LEVEL_WON') {
+    if (state.status === 'ROUND_REWARD' && state.pendingReward) {
       overlay.innerHTML = `
-        <div class="modal-content status-card">
-          <h1 class="status-title success">${I18N[currentLang].LEVEL_WON}</h1>
-          <p class="status-copy">Interest: CHIPS +${state.lastInterestEarned}</p>
-          <button id="next-btn" class="status-button success">${I18N[currentLang].NEXT_LEVEL}</button>
+        <div class="modal-content status-card reward-card">
+          <h1 class="status-title success">${I18N[currentLang].ROUND_REWARD}</h1>
+          <p class="status-copy">${state.pendingReward.levelName} · ${I18N[currentLang].STAGE} ${state.pendingReward.stage}/${state.totalStages}</p>
+          <div class="reward-breakdown">
+            <div class="reward-row"><span>${I18N[currentLang].LEVEL_REWARD}</span><strong>+${state.pendingReward.baseReward}</strong></div>
+            <div class="reward-row"><span>${I18N[currentLang].INTEREST_REWARD}</span><strong>+${state.pendingReward.interestReward}</strong></div>
+            <div class="reward-row total"><span>${I18N[currentLang].TOTAL_REWARD}</span><strong>+${state.pendingReward.totalReward}</strong></div>
+          </div>
+          <button id="shop-btn" class="status-button success">${I18N[currentLang].ENTER_SHOP}</button>
         </div>
       `;
       this.root.appendChild(overlay);
-      overlay.querySelector('#next-btn')?.addEventListener('click', () => {
-        this.store.nextLevel();
+      overlay.querySelector('#shop-btn')?.addEventListener('click', () => {
+        this.store.openShop();
+        this.render();
+      });
+      return;
+    }
+
+    if (state.status === 'SHOP') {
+      const offers = toShopViewOffers(state.shopOffers);
+      overlay.innerHTML = `
+        <div class="modal-content status-card shop-card">
+          <h1 class="status-title gold">${I18N[currentLang].SHOP}</h1>
+          <p class="status-copy">${I18N[currentLang].CHIPS}: ${state.chips}</p>
+          <div class="shop-grid">
+            ${offers.map((offer) => `
+              <div class="shop-offer ${offer.purchased ? 'purchased' : ''}">
+                ${createSpecialCardMarkup(
+                  offer.definition.name,
+                  offer.definition.shortName,
+                  offer.definition.description,
+                  offer.definition.accent
+                )}
+                <button
+                  class="status-button primary shop-buy-btn"
+                  data-offer-id="${offer.offerId}"
+                  ${offer.purchased || state.chips < offer.cost ? 'disabled' : ''}
+                >
+                  ${offer.purchased ? I18N[currentLang].PURCHASED : `${I18N[currentLang].BUY} (${offer.cost})`}
+                </button>
+              </div>
+            `).join('')}
+          </div>
+          <button id="continue-btn" class="status-button success">${I18N[currentLang].CONTINUE}</button>
+        </div>
+      `;
+      this.root.appendChild(overlay);
+      overlay.querySelectorAll('.shop-buy-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          const offerId = button.getAttribute('data-offer-id');
+          if (!offerId) return;
+          this.store.buyShopOffer(offerId);
+          this.render();
+        });
+      });
+      overlay.querySelector('#continue-btn')?.addEventListener('click', () => {
+        this.store.continueAfterShop();
         this.render();
       });
       return;
@@ -883,8 +1025,8 @@ export class GameUI {
       overlay.innerHTML = `
         <div class="modal-content status-card">
           <h1 class="status-title gold">${I18N[currentLang].WIN}</h1>
-          <p class="status-copy">You conquered all 3 levels!</p>
-          <p class="status-copy">Final Chips: ${state.chips}</p>
+          <p class="status-copy">${I18N[currentLang].FINAL_RUN_CLEAR}</p>
+          <p class="status-copy">${I18N[currentLang].FINAL_CHIPS}: ${state.chips}</p>
           <button id="restart-btn" class="status-button primary">${I18N[currentLang].RESTART}</button>
         </div>
       `;
@@ -918,7 +1060,7 @@ export class GameUI {
     document.documentElement.style.setProperty('--matrix-size', String(size));
     document.documentElement.style.setProperty('--card-length', String(CARD_LENGTH));
 
-    const levelEl = document.getElementById('ui-level'); if (levelEl) levelEl.textContent = `${I18N[currentLang].STAGE} ${state.currentLevel}/3`;
+    const levelEl = document.getElementById('ui-level'); if (levelEl) levelEl.textContent = `${I18N[currentLang].STAGE} ${state.currentStage}/${state.totalStages}`;
     const levelNameEl = document.getElementById('ui-level-name'); if (levelNameEl) levelNameEl.textContent = state.levelName;
     const levelIconEl = document.getElementById('ui-level-icon') as HTMLImageElement | null; if (levelIconEl) levelIconEl.src = iconAsset(state.levelIcon);
     const goalEl = document.getElementById('ui-goal'); if (goalEl) goalEl.textContent = (state.levelGoal || 0).toString();
@@ -944,7 +1086,7 @@ export class GameUI {
 
     // Update Translations
     const stageLabel = document.getElementById('ui-level');
-    if (stageLabel) stageLabel.textContent = `${I18N[currentLang].STAGE} ${state.currentLevel}/3`;
+    if (stageLabel) stageLabel.textContent = `${I18N[currentLang].STAGE} ${state.currentStage}/${state.totalStages}`;
     
     const stageName = document.getElementById('ui-level-name');
     if (stageName) {
@@ -975,6 +1117,8 @@ export class GameUI {
 
     const discardLabel = document.querySelector('#ui-discard-pile .pile-label');
     if (discardLabel) discardLabel.textContent = I18N[currentLang].WASTED;
+
+    this.renderSpecialCards(state);
     
     const clashScoreEl = document.getElementById('ui-clash-score');
     if (clashScoreEl) {

@@ -4,14 +4,16 @@ const WIN_MAP: Record<RPS, RPS | null> = {
   [RPS.ROCK]: RPS.SCISSORS,
   [RPS.SCISSORS]: RPS.PAPER,
   [RPS.PAPER]: RPS.ROCK,
-  [RPS.BLANK]: null
+  [RPS.BLANK]: null,
+  [RPS.TRICOLOR]: null
 };
 
 const SCORE_WEIGHTS: Record<RPS, number> = {
   [RPS.ROCK]: 4,
   [RPS.SCISSORS]: 3,
   [RPS.PAPER]: 1,
-  [RPS.BLANK]: 0
+  [RPS.BLANK]: 0,
+  [RPS.TRICOLOR]: 2
 };
 
 export interface LaneResult {
@@ -24,6 +26,29 @@ export interface LaneResult {
   tieCells?: { r: number; c: number }[];
   attachmentOffset: number;
   shiftedLanes: { index: number; type: 'row' | 'col'; direction: 1 | -1 }[];
+}
+
+function symbolThatBeats(target: RPS): RPS {
+  if (target === RPS.ROCK) return RPS.PAPER;
+  if (target === RPS.PAPER) return RPS.SCISSORS;
+  if (target === RPS.SCISSORS) return RPS.ROCK;
+  return RPS.ROCK;
+}
+
+function resolveTricolor(symbol: RPS, opponent: RPS, wantsAdvantage: boolean): RPS {
+  if (symbol !== RPS.TRICOLOR) return symbol;
+  if (opponent === RPS.BLANK) return RPS.TRICOLOR;
+  if (!wantsAdvantage) return RPS.ROCK;
+  return symbolThatBeats(opponent);
+}
+
+function resolvePair(attacker: RPS, defender: RPS): { attacker: RPS; defender: RPS } {
+  if (attacker === RPS.TRICOLOR && defender === RPS.TRICOLOR) {
+    return { attacker: RPS.ROCK, defender: RPS.ROCK };
+  }
+  const resolvedAttacker = resolveTricolor(attacker, defender, true);
+  const resolvedDefender = resolveTricolor(defender, resolvedAttacker, true);
+  return { attacker: resolvedAttacker, defender: resolvedDefender };
 }
 
 function shiftLane(grid: RPS[][], index: number, type: 'row' | 'col', direction: 1 | -1): void {
@@ -96,7 +121,7 @@ export function executeLaneClash(
       continue;
     }
 
-    const attacker = card.symbols[cardIndex];
+    let attackerSymbol = card.symbols[cardIndex];
     let r = 0, c = 0, dr = 0, dc = 0;
 
     if (edge === 'TOP') { r = 0; c = laneIndex; dr = 1; dc = 0; }
@@ -105,11 +130,20 @@ export function executeLaneClash(
     else if (edge === 'RIGHT') { r = laneIndex; c = size - 1; dr = 0; dc = -1; }
 
     const defender = newGrid[r][c];
-    const attackerLoses = defender !== RPS.BLANK && (attacker === RPS.BLANK || WIN_MAP[defender] === attacker);
+    const resolvedInitial = resolvePair(attackerSymbol, defender);
+    if (attackerSymbol === RPS.TRICOLOR) {
+      attackerSymbol = resolvedInitial.attacker;
+    }
+    const attackerLoses = resolvedInitial.defender !== RPS.BLANK
+      && (resolvedInitial.attacker === RPS.BLANK || WIN_MAP[resolvedInitial.defender] === resolvedInitial.attacker);
 
     if (attackerLoses) {
-      const attackerVal = Number(SCORE_WEIGHTS[attacker]) || 0;
+      const attackerVal = Number(SCORE_WEIGHTS[resolvedInitial.attacker]) || 0;
       penalty += attackerVal;
+
+      if (defender === RPS.TRICOLOR) {
+        newGrid[r][c] = resolvedInitial.defender;
+      }
 
       if (edge === 'LEFT' || edge === 'RIGHT') {
         const shiftDir: 1 | -1 = edge === 'LEFT' ? -1 : 1;
@@ -120,26 +154,33 @@ export function executeLaneClash(
         shiftLane(newGrid, laneIndex, 'col', shiftDir);
         shiftedLanes.push({ index: laneIndex, type: 'col', direction: shiftDir });
       }
-    } else if (attacker !== RPS.BLANK) {
+    } else if (attackerSymbol !== RPS.BLANK) {
       for (let step = 0; step < size; step += 1) {
         const currentDefender = newGrid[r][c];
-        const attackerWins = (WIN_MAP[attacker] === currentDefender) || (currentDefender === RPS.BLANK);
+        const resolved = resolvePair(attackerSymbol, currentDefender);
+        const attackerWins = (WIN_MAP[resolved.attacker] === resolved.defender) || (resolved.defender === RPS.BLANK);
 
         if (attackerWins) {
-          const gain = Number(SCORE_WEIGHTS[currentDefender]) || 0;
+          const gain = Number(SCORE_WEIGHTS[resolved.defender]) || 0;
           totalScore += gain;
           laneScores[cardIndex] += gain;
-          newGrid[r][c] = attacker;
+          newGrid[r][c] = resolved.attacker;
           replacedCells.push({ r, c });
           r += dr; c += dc;
           if (r < 0 || r > size - 1 || c < 0 || c > size - 1) break;
         } else {
           // Attacker loses to the current defender (or tie), apply penalty if it's a loss
-          if (WIN_MAP[currentDefender] === attacker) {
-            penalty += Number(SCORE_WEIGHTS[attacker]) || 0;
+          if (WIN_MAP[resolved.defender] === resolved.attacker) {
+            penalty += Number(SCORE_WEIGHTS[resolved.attacker]) || 0;
             failedCells.push({ r, c });
-          } else if (currentDefender === attacker) {
+            if (currentDefender === RPS.TRICOLOR) {
+              newGrid[r][c] = resolved.defender;
+            }
+          } else if (resolved.defender === resolved.attacker) {
             tieCells.push({ r, c });
+            if (currentDefender === RPS.TRICOLOR) {
+              newGrid[r][c] = resolved.defender;
+            }
           }
           break;
         }

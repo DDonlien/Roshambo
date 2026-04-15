@@ -1,11 +1,37 @@
-# Reference Images Directory
+# Roshambo - 游戏手册 (Game Manual)
 
-This folder is intended to store reference screenshots sent by the user for tracing historical bugs and UI layout requirements.
+欢迎来到 **Roshambo**！这是一款基于“石头剪刀布”规则的 Roguelike 策略卡牌游戏。你将通过向矩阵中打出卡牌，利用克制关系进行轨道对冲，冲击高分并生存到最后。
 
-Please place the following images in this folder and name them exactly as shown below:
+## 🎮 游戏目标
+在手牌耗尽前达到当前关卡的目标分数（Goal）。游戏共包含 9 个大关（Stage），每个大关包含 3 个小关，总计 27 关。通过全部关卡即为胜利！
 
-- `bug-000-scissors.png` (Screenshot showing the "000 calculated as 4 scissors" logical mismatch bug)
-- `ui-card-size-mismatch.png` (Screenshot showing the attached card smaller than the matrix)
-- `ui-black-screen.png` (Screenshot of the black screen issue caused by Vite cache/DOM recursion)
+## ⚔️ 核心玩法：轨道对冲 (Lane Clash)
+1. **矩阵与手牌**：
+   - 游戏中央是一个充满石头、剪刀、布或空白方块的矩阵。
+   - 矩阵大小会随关卡变化：Pocket (2x2)、Rubik (3x3)、Master (4x4)。
+   - 你的手牌是由 3 个元素组成的条状卡牌。
+2. **打出卡牌**：
+   - 点击选中手牌，将其悬停在矩阵的**上、下、左、右**四个边缘，可以预览卡牌推入矩阵后的结果。
+   - 再次点击确认打出。
+3. **对冲结算规则**：
+   卡牌打出后，其上的每个元素会向对应的轨道（Lane）发起冲击，与矩阵内的防守方格逐一进行“石头剪刀布”的对决：
+   - **胜利 (Win)**：如果攻击方克制防守方（或防守方为空白），攻击方将**占据该格**并获得分数。随后，攻击方会继续向该轨道的下一格发起冲击。
+     - 击败石头：+4 分
+     - 击败剪刀：+3 分
+     - 击败布：+1 分
+   - **平局 (Tie)**：如果双方相同，攻击方停止前进，无分数变化。
+   - **失败 (Lose)**：如果攻击方被克制，攻击方不仅会停止前进，还会**倒扣分数**（扣除等同于攻击方自身价值的分数），并且**整个轨道会被向反方向平移一格**（Lane Shift）！
 
-These images are referenced and linked directly in the main `requirement.md` file.
+## 💰 局外成长与经济系统
+- **筹码 (Chips)**：游戏内的货币。通关时会根据关卡基础奖励和“利息（Interest）”获得筹码。
+- **商店 (Shop)**：每个关卡结束后会进入商店，你可以消耗筹码购买**特殊牌 (Special Cards / Relics)**，为你提供强大的被动加成（例如增加初始筹码、提高利息、增加洗牌次数等）。
+- **洗牌 (Shuffle)**：消耗 1 次洗牌次数，重新随机生成当前矩阵。
+- **替换手牌 (Deal Card)**：选中不需要的手牌，消耗 1 次替换次数将它们丢弃并从牌库抽取新牌。
+
+## 🕹️ 操作指南
+- **鼠标左键**：点击选中手牌，点击边缘确认打出。
+- **鼠标滚轮 / Rotate按钮**：翻转选中的手牌 180 度，改变元素的推入顺序。
+- **点击界面空白处**：取消选中卡牌。
+
+---
+*(Note: 历史版本的 Bug 追踪参考图说明请见 `reference/requirement.md`)*

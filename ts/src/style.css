@@ -352,18 +352,79 @@ body {
 }
 
 .relics-row {
-  display: flex;
-  gap: 20px;
-  width: 80%;
-  justify-content: space-between;
+  align-self: flex-start;
+  margin-left: clamp(16px, 2cqw, 28px);
+  width: min(420px, 38vw);
+  min-height: 86px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-sizing: border-box;
 }
 
-.relic-slot {
-  width: 45%;
-  height: 60px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.special-cards-header {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #9fb4c0;
+  margin-bottom: 10px;
+}
+
+.special-cards-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.special-card,
+.shop-offer {
+  border-radius: 14px;
+}
+
+.special-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.18));
+  border: 1px solid color-mix(in srgb, var(--special-accent) 55%, #ffffff 10%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 20px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+}
+
+.special-card-mini {
+  width: 120px;
+  min-height: 88px;
+}
+
+.special-card-name {
+  font-size: 0.9rem;
+  font-weight: 900;
+  color: var(--special-accent);
+}
+
+.special-card-short {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+
+.special-card-desc {
+  margin-top: 8px;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.special-card-empty {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.82rem;
 }
 
 .matrix-wrapper {
@@ -749,6 +810,11 @@ body {
   width: 90%;
 }
 
+.reward-card,
+.shop-card {
+  max-width: 980px;
+}
+
 .deck-options {
   display: flex;
   justify-content: space-around;
@@ -802,6 +868,56 @@ body {
   margin: 12px 0;
 }
 
+.reward-breakdown {
+  margin: 24px auto 8px;
+  width: min(420px, 100%);
+  background: rgba(0, 0, 0, 0.16);
+  border-radius: 14px;
+  padding: 14px 18px;
+}
+
+.reward-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 1rem;
+}
+
+.reward-row:last-child {
+  border-bottom: none;
+}
+
+.reward-row.total {
+  color: #ffd66b;
+  font-weight: 900;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.shop-offer {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shop-offer.purchased {
+  opacity: 0.78;
+}
+
+.shop-offer .special-card {
+  flex: 1;
+  text-align: left;
+}
+
 .status-button {
   margin-top: 20px;
   padding: 14px 28px;
@@ -811,6 +927,14 @@ body {
   font-size: 1.1rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.status-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
+  box-shadow: none;
 }
 
 .status-button.success {

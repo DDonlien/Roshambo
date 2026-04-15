@@ -2,12 +2,21 @@ export enum RPS {
   ROCK = 'ROCK',
   SCISSORS = 'SCISSORS',
   PAPER = 'PAPER',
-  BLANK = 'BLANK'
+  BLANK = 'BLANK',
+  TRICOLOR = 'TRICOLOR'
 }
 
 export const CARD_LENGTH = 3;
 
 export type LevelIcon = 'pocket' | 'rubik' | 'master';
+
+export type GameStatus =
+  | 'CHOOSE_DECK'
+  | 'PLAYING'
+  | 'ROUND_REWARD'
+  | 'SHOP'
+  | 'GAME_OVER'
+  | 'WIN';
 
 export interface Card {
   id: string;
@@ -40,7 +49,10 @@ export interface GameConfig {
 
 export interface LevelConfig {
   level: number;
+  stage: number;
+  tier: number;
   goal: number;
+  reward: number;
   name: string;
   matrixSize: number;
   icon: LevelIcon;
@@ -53,6 +65,29 @@ export interface InitialConfig {
   shufflesLeft: number;
 }
 
+export interface RoundRewardSummary {
+  level: number;
+  stage: number;
+  levelName: string;
+  goal: number;
+  baseReward: number;
+  interestReward: number;
+  totalReward: number;
+  finalLevel: boolean;
+}
+
+export interface SpecialCardInstance {
+  instanceId: string;
+  definitionId: string;
+}
+
+export interface ShopOffer {
+  offerId: string;
+  definitionId: string;
+  cost: number;
+  purchased: boolean;
+}
+
 export interface GameState {
   matrix: Matrix;
   hand: Card[];
@@ -62,14 +97,23 @@ export interface GameState {
   chips: number;
   interestRate: number;
   currentLevel: number;
+  currentStage: number;
+  currentTier: number;
+  totalStages: number;
+  totalLevels: number;
   levelName: string;
   levelIcon: LevelIcon;
   levelGoal: number;
+  levelReward: number;
   shufflesLeft: number;
   dealsLeft: number;
   selectedCardIds: string[];
-  status: 'CHOOSE_DECK' | 'PLAYING' | 'LEVEL_WON' | 'GAME_OVER' | 'WIN';
+  status: GameStatus;
   lastClash: ClashResult | null;
   preview: ClashResult | null;
   lastInterestEarned: number;
+  lastLevelReward: number;
+  pendingReward: RoundRewardSummary | null;
+  shopOffers: ShopOffer[];
+  specialCards: SpecialCardInstance[];
 }
