@@ -30,6 +30,7 @@ export function toSpecialCardViews(cards: SpecialCardInstance[]): SpecialCardVie
 export function toShopViewOffers(offers: ShopOffer[]): ShopViewOffer[] {
   return offers
     .map((offer) => {
+      if (!offer.definitionId) return null;
       const definition = SPECIAL_CARD_REGISTRY[offer.definitionId];
       return definition ? { ...offer, definition } : null;
     })

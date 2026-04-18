@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "unlockDocuments": {
+    "unlock:starter": {
+      "title": "Starter",
+      "description": "Default unlocked."
+    }
+  },
+  "decks": [
+    {
+      "id": "deck:pinpoint",
+      "name": "Pinpoint",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "100", "count": 3 },
+        { "code": "300", "count": 3 },
+        { "code": "400", "count": 3 }
+      ]
+    },
+    {
+      "id": "deck:multihit",
+      "name": "Multi-hit",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "110", "count": 3 },
+        { "code": "330", "count": 3 },
+        { "code": "440", "count": 3 }
+      ]
+    },
+    {
+      "id": "deck:allin",
+      "name": "All In",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "111", "count": 3 },
+        { "code": "333", "count": 3 },
+        { "code": "444", "count": 3 }
+      ]
+    },
+    {
+      "id": "deck:no-paper",
+      "name": "No Paper",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "300", "count": 2 },
+        { "code": "330", "count": 2 },
+        { "code": "333", "count": 2 },
+        { "code": "400", "count": 2 },
+        { "code": "440", "count": 2 },
+        { "code": "444", "count": 2 }
+      ]
+    },
+    {
+      "id": "deck:no-scissors",
+      "name": "No Scissors",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "100", "count": 2 },
+        { "code": "110", "count": 2 },
+        { "code": "111", "count": 2 },
+        { "code": "400", "count": 2 },
+        { "code": "440", "count": 2 },
+        { "code": "444", "count": 2 }
+      ]
+    },
+    {
+      "id": "deck:no-rock",
+      "name": "No Rock",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "100", "count": 2 },
+        { "code": "110", "count": 2 },
+        { "code": "111", "count": 2 },
+        { "code": "300", "count": 2 },
+        { "code": "330", "count": 2 },
+        { "code": "333", "count": 2 }
+      ]
+    },
+    {
+      "id": "deck:wild",
+      "name": "Wild Mix",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "341", "count": 3 },
+        { "code": "413", "count": 3 },
+        { "code": "431", "count": 3 }
+      ]
+    },
+    {
+      "id": "deck:tricolor",
+      "name": "Tricolor",
+      "unlockRef": "unlock:starter",
+      "cards": [
+        { "code": "777", "count": 12 }
+      ]
+    }
+  ]
+}

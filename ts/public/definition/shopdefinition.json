@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "offerSlotCount": 3,
+  "offerFormWeights": {
+    "direct": 70,
+    "pack": 30
+  },
+  "directTypeWeights": {
+    "sleeve": 25,
+    "giftcard": 15,
+    "playmat": 15,
+    "card": 45
+  },
+  "packTypeWeights": {
+    "sleeve": 20,
+    "giftcard": 15,
+    "playmat": 25,
+    "card": 40
+  },
+  "packChoiceCountWeights": {
+    "2": 65,
+    "3": 35
+  },
+  "packCostMultiplier": 1.6,
+  "cardPricing": {
+    "base": 2,
+    "rock": 2,
+    "scissors": 2,
+    "paper": 1,
+    "blank": 0,
+    "tricolor": 4,
+    "duplicateDiscount": 1,
+    "diversityBonus": 1,
+    "tricolorMixBonus": 2
+  }
+}

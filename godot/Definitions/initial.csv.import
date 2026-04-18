@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://i0gv8ukdqw5f"
+
+[deps]
+
+files=["res://Definitions/initial.deck 1.translation", "res://Definitions/initial.deck 2.translation", "res://Definitions/initial.deck 3.translation"]
+
+source_file="res://Definitions/initial.csv"
+dest_files=["res://Definitions/initial.deck 1.translation", "res://Definitions/initial.deck 2.translation", "res://Definitions/initial.deck 3.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

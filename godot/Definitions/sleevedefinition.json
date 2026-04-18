@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "slotLimit": 2,
+  "sleeves": [
+    {
+      "id": "sleeve:starter",
+      "name": "Starter Sleeve",
+      "slotCost": 1,
+      "rarity": "common",
+      "description": "Placeholder sleeve. No effect yet.",
+      "effectRef": "effect:none"
+    }
+  ],
+  "effects": {
+    "effect:none": {
+      "type": "none"
+    }
+  }
+}

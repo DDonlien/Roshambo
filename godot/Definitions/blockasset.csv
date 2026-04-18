@@ -1,0 +1,4 @@
+ROCK,./Sketch/BlockType=Rock.png
+SCISSORS,./Sketch/BlockType=Scissors.png
+PAPER,./Sketch/BlockType=Paper.png
+BLANK,./Sketch/BlockType=Blank.png

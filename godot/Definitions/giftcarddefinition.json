@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "giftcards": [
+    {
+      "id": "gift:chips-boost",
+      "name": "Chip Boost",
+      "timing": "immediate",
+      "description": "Placeholder gift card. Grants chips immediately.",
+      "effectRef": "effect:chips+5"
+    },
+    {
+      "id": "gift:next-round-interest",
+      "name": "Interest Coupon",
+      "timing": "next_round",
+      "description": "Placeholder gift card. Applies next round only.",
+      "effectRef": "effect:interest+0.05"
+    }
+  ],
+  "effects": {
+    "effect:chips+5": {
+      "type": "chips_delta",
+      "value": 5
+    },
+    "effect:interest+0.05": {
+      "type": "interest_rate_delta",
+      "value": 0.05
+    }
+  }
+}

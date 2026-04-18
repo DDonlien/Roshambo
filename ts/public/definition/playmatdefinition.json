@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "inventoryLimit": 5,
+  "playmats": [
+    {
+      "id": "playmat:magician",
+      "name": "The Magician",
+      "shortName": "Magic",
+      "nameI18n": { "ZH": "魔术师", "ZH_TW": "魔術師", "JA": "魔術師" },
+      "shortNameI18n": { "ZH": "魔术", "ZH_TW": "魔術", "JA": "魔術" },
+      "timing": "playing",
+      "cost": 5,
+      "accent": "#9b5de5",
+      "description": "Transform 1 selected hand card into TRICOLOR for this level.",
+      "descriptionI18n": {
+        "ZH": "将 1 张选中的手牌变成 TRICOLOR，本关生效。",
+        "ZH_TW": "將 1 張選中的手牌變成 TRICOLOR，本關生效。",
+        "JA": "選択した手札 1 枚を TRICOLOR に変える。この関のみ有効。"
+      },
+      "effect": { "type": "transform_selected_to_symbol", "count": 1, "symbol": "TRICOLOR" }
+    },
+    {
+      "id": "playmat:strength",
+      "name": "Strength",
+      "shortName": "Power",
+      "nameI18n": { "ZH": "力量", "ZH_TW": "力量", "JA": "力" },
+      "shortNameI18n": { "ZH": "力量", "ZH_TW": "力量", "JA": "力" },
+      "timing": "playing",
+      "cost": 5,
+      "accent": "#ef476f",
+      "description": "Increase the weight of up to 2 selected cards by 1 step for this level.",
+      "descriptionI18n": {
+        "ZH": "将最多 2 张选中的手牌权重提高 1 级，本关生效。",
+        "ZH_TW": "將最多 2 張選中的手牌權重提高 1 級，本關生效。",
+        "JA": "選択した手札を最大 2 枚まで 1 段階強化する。この関のみ有効。"
+      },
+      "effect": { "type": "increase_selected_card_weight", "count": 2, "amount": 1 }
+    },
+    {
+      "id": "playmat:hanged-man",
+      "name": "The Hanged Man",
+      "shortName": "Hanged",
+      "nameI18n": { "ZH": "倒吊人", "ZH_TW": "倒吊人", "JA": "吊るされた男" },
+      "shortNameI18n": { "ZH": "倒吊", "ZH_TW": "倒吊", "JA": "吊男" },
+      "timing": "playing",
+      "cost": 4,
+      "accent": "#6d597a",
+      "description": "Destroy up to 2 selected hand cards for this level.",
+      "descriptionI18n": {
+        "ZH": "摧毁最多 2 张选中的手牌，本关生效。",
+        "ZH_TW": "摧毀最多 2 張選中的手牌，本關生效。",
+        "JA": "選択した手札を最大 2 枚破壊する。この関のみ有効。"
+      },
+      "effect": { "type": "destroy_selected_cards", "count": 2 }
+    },
+    {
+      "id": "playmat:death",
+      "name": "Death",
+      "shortName": "Death",
+      "nameI18n": { "ZH": "死神", "ZH_TW": "死神", "JA": "死神" },
+      "shortNameI18n": { "ZH": "死神", "ZH_TW": "死神", "JA": "死神" },
+      "timing": "playing",
+      "cost": 5,
+      "accent": "#264653",
+      "description": "Select 2 cards. Copy the right card into the left card for this level.",
+      "descriptionI18n": {
+        "ZH": "选择 2 张手牌，将右侧牌复制到左侧牌，本关生效。",
+        "ZH_TW": "選擇 2 張手牌，將右側牌複製到左側牌，本關生效。",
+        "JA": "手札を 2 枚選び、右のカードを左のカードにコピーする。この関のみ有効。"
+      },
+      "effect": { "type": "copy_right_card_to_left_card" }
+    },
+    {
+      "id": "playmat:tower",
+      "name": "The Tower",
+      "shortName": "Tower",
+      "nameI18n": { "ZH": "高塔", "ZH_TW": "高塔", "JA": "塔" },
+      "shortNameI18n": { "ZH": "高塔", "ZH_TW": "高塔", "JA": "塔" },
+      "timing": "playing",
+      "cost": 4,
+      "accent": "#e76f51",
+      "description": "Transform 1 selected card into ROCK for this level.",
+      "descriptionI18n": {
+        "ZH": "将 1 张选中的手牌变成 ROCK，本关生效。",
+        "ZH_TW": "將 1 張選中的手牌變成 ROCK，本關生效。",
+        "JA": "選択した手札 1 枚を ROCK に変える。この関のみ有効。"
+      },
+      "effect": { "type": "transform_selected_to_symbol", "count": 1, "symbol": "ROCK" }
+    },
+    {
+      "id": "playmat:star",
+      "name": "The Star",
+      "shortName": "Star",
+      "nameI18n": { "ZH": "星星", "ZH_TW": "星星", "JA": "星" },
+      "shortNameI18n": { "ZH": "星", "ZH_TW": "星", "JA": "星" },
+      "timing": "playing",
+      "cost": 4,
+      "accent": "#fcbf49",
+      "description": "Transform up to 3 selected cards into ROCK for this level.",
+      "descriptionI18n": {
+        "ZH": "将最多 3 张选中的手牌变成 ROCK，本关生效。",
+        "ZH_TW": "將最多 3 張選中的手牌變成 ROCK，本關生效。",
+        "JA": "選択した手札を最大 3 枚まで ROCK に変える。この関のみ有効。"
+      },
+      "effect": { "type": "transform_selected_to_symbol", "count": 3, "symbol": "ROCK" }
+    },
+    {
+      "id": "playmat:moon",
+      "name": "The Moon",
+      "shortName": "Moon",
+      "nameI18n": { "ZH": "月亮", "ZH_TW": "月亮", "JA": "月" },
+      "shortNameI18n": { "ZH": "月", "ZH_TW": "月", "JA": "月" },
+      "timing": "playing",
+      "cost": 4,
+      "accent": "#adb5bd",
+      "description": "Transform up to 3 selected cards into BLANK for this level.",
+      "descriptionI18n": {
+        "ZH": "将最多 3 张选中的手牌变成 BLANK，本关生效。",
+        "ZH_TW": "將最多 3 張選中的手牌變成 BLANK，本關生效。",
+        "JA": "選択した手札を最大 3 枚まで BLANK に変える。この関のみ有効。"
+      },
+      "effect": { "type": "transform_selected_to_symbol", "count": 3, "symbol": "BLANK" }
+    },
+    {
+      "id": "playmat:sun",
+      "name": "The Sun",
+      "shortName": "Sun",
+      "nameI18n": { "ZH": "太阳", "ZH_TW": "太陽", "JA": "太陽" },
+      "shortNameI18n": { "ZH": "日", "ZH_TW": "日", "JA": "日" },
+      "timing": "playing",
+      "cost": 4,
+      "accent": "#ffbe0b",
+      "description": "Transform up to 3 selected cards into SCISSORS for this level.",
+      "descriptionI18n": {
+        "ZH": "将最多 3 张选中的手牌变成 SCISSORS，本关生效。",
+        "ZH_TW": "將最多 3 張選中的手牌變成 SCISSORS，本關生效。",
+        "JA": "選択した手札を最大 3 枚まで SCISSORS に変える。この関のみ有効。"
+      },
+      "effect": { "type": "transform_selected_to_symbol", "count": 3, "symbol": "SCISSORS" }
+    },
+    {
+      "id": "playmat:world",
+      "name": "The World",
+      "shortName": "World",
+      "nameI18n": { "ZH": "世界", "ZH_TW": "世界", "JA": "世界" },
+      "shortNameI18n": { "ZH": "世界", "ZH_TW": "世界", "JA": "世界" },
+      "timing": "playing",
+      "cost": 4,
+      "accent": "#4361ee",
+      "description": "Transform up to 3 selected cards into PAPER for this level.",
+      "descriptionI18n": {
+        "ZH": "将最多 3 张选中的手牌变成 PAPER，本关生效。",
+        "ZH_TW": "將最多 3 張選中的手牌變成 PAPER，本關生效。",
+        "JA": "選択した手札を最大 3 枚まで PAPER に変える。この関のみ有効。"
+      },
+      "effect": { "type": "transform_selected_to_symbol", "count": 3, "symbol": "PAPER" }
+    }
+  ]
+}

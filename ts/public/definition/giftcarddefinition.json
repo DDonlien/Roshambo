@@ -1,29 +1,91 @@
 {
-  "version": 1,
+  "version": 2,
+  "inventoryLimit": 5,
   "giftcards": [
     {
-      "id": "gift:chips-boost",
-      "name": "Chip Boost",
-      "timing": "immediate",
-      "description": "Placeholder gift card. Grants chips immediately.",
-      "effectRef": "effect:chips+5"
+      "id": "gift:fool",
+      "name": "The Fool",
+      "shortName": "Fool",
+      "nameI18n": { "ZH": "愚者", "ZH_TW": "愚者", "JA": "愚者" },
+      "shortNameI18n": { "ZH": "愚者", "ZH_TW": "愚者", "JA": "愚者" },
+      "timing": "prepare_level",
+      "cost": 4,
+      "accent": "#f4a261",
+      "description": "Copy the last used gift card, except The Fool.",
+      "descriptionI18n": {
+        "ZH": "复制上一张已使用的 Gift Card，但不能复制愚者本身。",
+        "ZH_TW": "複製上一張已使用的 Gift Card，但不能複製愚者本身。",
+        "JA": "直前に使用した Gift Card を複製する。ただし The Fool 自身は除く。"
+      },
+      "effect": { "type": "copy_last_used" }
     },
     {
-      "id": "gift:next-round-interest",
-      "name": "Interest Coupon",
-      "timing": "next_round",
-      "description": "Placeholder gift card. Applies next round only.",
-      "effectRef": "effect:interest+0.05"
-    }
-  ],
-  "effects": {
-    "effect:chips+5": {
-      "type": "chips_delta",
-      "value": 5
+      "id": "gift:priestess",
+      "name": "The High Priestess",
+      "shortName": "Priest",
+      "nameI18n": { "ZH": "女祭司", "ZH_TW": "女祭司", "JA": "女教皇" },
+      "shortNameI18n": { "ZH": "祭司", "ZH_TW": "祭司", "JA": "司祭" },
+      "timing": "prepare_level",
+      "cost": 5,
+      "accent": "#9b5de5",
+      "description": "Create 2 random Playmats if there is room.",
+      "descriptionI18n": {
+        "ZH": "若有空位，生成 2 张随机 Playmat。",
+        "ZH_TW": "若有空位，生成 2 張隨機 Playmat。",
+        "JA": "空きがあればランダムな Playmat を 2 枚生成する。"
+      },
+      "effect": { "type": "spawn_random_playmats", "count": 2 }
     },
-    "effect:interest+0.05": {
-      "type": "interest_rate_delta",
-      "value": 0.05
+    {
+      "id": "gift:emperor",
+      "name": "The Emperor",
+      "shortName": "Emperor",
+      "nameI18n": { "ZH": "皇帝", "ZH_TW": "皇帝", "JA": "皇帝" },
+      "shortNameI18n": { "ZH": "皇帝", "ZH_TW": "皇帝", "JA": "皇帝" },
+      "timing": "prepare_level",
+      "cost": 6,
+      "accent": "#ffb703",
+      "description": "Create 2 random gift cards if there is room.",
+      "descriptionI18n": {
+        "ZH": "若有空位，生成 2 张随机 Gift Card。",
+        "ZH_TW": "若有空位，生成 2 張隨機 Gift Card。",
+        "JA": "空きがあればランダムな Gift Card を 2 枚生成する。"
+      },
+      "effect": { "type": "spawn_random_giftcards", "count": 2 }
+    },
+    {
+      "id": "gift:hermit",
+      "name": "The Hermit",
+      "shortName": "Hermit",
+      "nameI18n": { "ZH": "隐者", "ZH_TW": "隱者", "JA": "隠者" },
+      "shortNameI18n": { "ZH": "隐者", "ZH_TW": "隱者", "JA": "隠者" },
+      "timing": "prepare_level",
+      "cost": 6,
+      "accent": "#8ecae6",
+      "description": "Gain chips equal to your current chips, capped at +20.",
+      "descriptionI18n": {
+        "ZH": "获得等同于当前筹码数的筹码，上限 +20。",
+        "ZH_TW": "獲得等同於目前籌碼數的籌碼，上限 +20。",
+        "JA": "現在のチップと同量のチップを得る。上限は +20。"
+      },
+      "effect": { "type": "double_money_cap", "cap": 20 }
+    },
+    {
+      "id": "gift:judgement",
+      "name": "Judgement",
+      "shortName": "Judge",
+      "nameI18n": { "ZH": "审判", "ZH_TW": "審判", "JA": "審判" },
+      "shortNameI18n": { "ZH": "审判", "ZH_TW": "審判", "JA": "審判" },
+      "timing": "prepare_level",
+      "cost": 7,
+      "accent": "#06d6a0",
+      "description": "Gain 1 random sleeve immediately if there is room.",
+      "descriptionI18n": {
+        "ZH": "若有空位，立即获得 1 个随机 Sleeve。",
+        "ZH_TW": "若有空位，立即獲得 1 個隨機 Sleeve。",
+        "JA": "空きがあればランダムな Sleeve を 1 つ獲得する。"
+      },
+      "effect": { "type": "add_random_sleeve", "count": 1 }
     }
-  }
+  ]
 }

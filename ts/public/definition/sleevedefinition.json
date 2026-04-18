@@ -1,19 +1,379 @@
 {
-  "version": 1,
+  "version": 2,
   "slotLimit": 2,
   "sleeves": [
     {
-      "id": "sleeve:starter",
-      "name": "Starter Sleeve",
-      "slotCost": 1,
+      "id": "sleeve:joker",
+      "name": "Joker",
+      "shortName": "Jkr",
       "rarity": "common",
-      "description": "Placeholder sleeve. No effect yet.",
-      "effectRef": "effect:none"
+      "cost": 4,
+      "accent": "#ffd166",
+      "description": "+4 score on every clash.",
+      "effects": [{ "type": "score_flat", "value": 4 }]
+    },
+    {
+      "id": "sleeve:greedy",
+      "name": "Greedy Joker",
+      "shortName": "Grd",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#ffb703",
+      "description": "Rock captures gain +4 score each.",
+      "effects": [{ "type": "score_flat_per_attacker_symbol_win", "symbol": "ROCK", "value": 4 }]
+    },
+    {
+      "id": "sleeve:lusty",
+      "name": "Lusty Joker",
+      "shortName": "Lst",
+      "rarity": "common",
+      "cost": 5,
+      "accent": "#ef476f",
+      "description": "Scissors captures gain +4 score each.",
+      "effects": [{ "type": "score_flat_per_attacker_symbol_win", "symbol": "SCISSORS", "value": 4 }]
+    },
+    {
+      "id": "sleeve:wrathful",
+      "name": "Wrathful Joker",
+      "shortName": "Wrt",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#9b5de5",
+      "description": "Paper captures gain +4 score each.",
+      "effects": [{ "type": "score_flat_per_attacker_symbol_win", "symbol": "PAPER", "value": 4 }]
+    },
+    {
+      "id": "sleeve:gluttonous",
+      "name": "Gluttonous Joker",
+      "shortName": "Glt",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#8ecae6",
+      "description": "Blank captures gain +4 score each.",
+      "effects": [{ "type": "score_flat_per_attacker_symbol_win", "symbol": "BLANK", "value": 4 }]
+    },
+    {
+      "id": "sleeve:jolly",
+      "name": "Jolly Joker",
+      "shortName": "Jly",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#ff7b00",
+      "description": "Pair cards gain +8 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "pair", "value": 8 }]
+    },
+    {
+      "id": "sleeve:zany",
+      "name": "Zany Joker",
+      "shortName": "Zny",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#fb5607",
+      "description": "Three of a kind gains +12 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "three_kind", "value": 12 }]
+    },
+    {
+      "id": "sleeve:crazy",
+      "name": "Crazy Joker",
+      "shortName": "Crz",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#8338ec",
+      "description": "Straight cards gain +12 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "straight", "value": 12 }]
+    },
+    {
+      "id": "sleeve:droll",
+      "name": "Droll Joker",
+      "shortName": "Drl",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#3a86ff",
+      "description": "Flush cards gain +10 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "flush", "value": 10 }]
+    },
+    {
+      "id": "sleeve:sly",
+      "name": "Sly Joker",
+      "shortName": "Sly",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#06d6a0",
+      "description": "Pair cards gain +50 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "pair", "value": 50 }]
+    },
+    {
+      "id": "sleeve:wily",
+      "name": "Wily Joker",
+      "shortName": "Wly",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#06d6a0",
+      "description": "Three of a kind gains +100 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "three_kind", "value": 100 }]
+    },
+    {
+      "id": "sleeve:devious",
+      "name": "Devious Joker",
+      "shortName": "Dev",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#06d6a0",
+      "description": "Straight cards gain +100 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "straight", "value": 100 }]
+    },
+    {
+      "id": "sleeve:crafty",
+      "name": "Crafty Joker",
+      "shortName": "Crf",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#06d6a0",
+      "description": "Flush cards gain +80 score.",
+      "effects": [{ "type": "score_flat_if_pattern", "pattern": "flush", "value": 80 }]
+    },
+    {
+      "id": "sleeve:half",
+      "name": "Half Joker",
+      "shortName": "Half",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#f4a261",
+      "description": "Roshambo cards are always 3 long, so this gives +20 score.",
+      "effects": [{ "type": "score_flat", "value": 20 }]
+    },
+    {
+      "id": "sleeve:stencil",
+      "name": "Joker Stencil",
+      "shortName": "Sten",
+      "rarity": "uncommon",
+      "cost": 8,
+      "accent": "#f72585",
+      "description": "Score multiplies by current empty sleeve slots.",
+      "effects": [{ "type": "score_mult_per_empty_sleeve_slot", "value": 1 }]
+    },
+    {
+      "id": "sleeve:banner",
+      "name": "Banner",
+      "shortName": "Bnr",
+      "rarity": "common",
+      "cost": 6,
+      "accent": "#457b9d",
+      "description": "+40 score for each remaining deal.",
+      "effects": [{ "type": "score_flat_per_remaining_deal", "value": 40 }]
+    },
+    {
+      "id": "sleeve:mystic-summit",
+      "name": "Mystic Summit",
+      "shortName": "Summit",
+      "rarity": "common",
+      "cost": 5,
+      "accent": "#a8dadc",
+      "description": "+15 score when no deals remain.",
+      "effects": [{ "type": "score_flat_if_no_deals_left", "value": 15 }]
+    },
+    {
+      "id": "sleeve:loyalty-card",
+      "name": "Loyalty Card",
+      "shortName": "Loyal",
+      "rarity": "uncommon",
+      "cost": 6,
+      "accent": "#ffd166",
+      "description": "Every 6th played hand scores x4.",
+      "effects": [{ "type": "score_mult_every_n_hands", "interval": 6, "value": 4 }]
+    },
+    {
+      "id": "sleeve:misprint",
+      "name": "Misprint",
+      "shortName": "Rand",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#cdb4db",
+      "description": "Random bonus score each clash.",
+      "effects": [{ "type": "score_flat_random", "min": 0, "max": 23 }]
+    },
+    {
+      "id": "sleeve:abstract",
+      "name": "Abstract Joker",
+      "shortName": "Abs",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#ffafcc",
+      "description": "+3 score for each owned sleeve.",
+      "effects": [{ "type": "score_flat_per_owned_sleeve", "value": 3 }]
+    },
+    {
+      "id": "sleeve:runner",
+      "name": "Runner",
+      "shortName": "Run",
+      "rarity": "common",
+      "cost": 6,
+      "accent": "#2a9d8f",
+      "description": "Gain +20 score, plus +10 more on Straight.",
+      "effects": [
+        { "type": "score_flat", "value": 20 },
+        { "type": "score_flat_if_pattern", "pattern": "straight", "value": 10 }
+      ]
+    },
+    {
+      "id": "sleeve:blue",
+      "name": "Blue Joker",
+      "shortName": "Blue",
+      "rarity": "common",
+      "cost": 5,
+      "accent": "#4cc9f0",
+      "description": "+2 score for each remaining deck card.",
+      "effects": [{ "type": "score_flat_per_remaining_deck_card", "value": 2 }]
+    },
+    {
+      "id": "sleeve:drunkard",
+      "name": "Drunkard",
+      "shortName": "Drnk",
+      "rarity": "common",
+      "cost": 4,
+      "accent": "#8d99ae",
+      "description": "+1 deal every level.",
+      "effects": [{ "type": "bonus_deals_per_level", "value": 1 }]
+    },
+    {
+      "id": "sleeve:golden",
+      "name": "Golden Joker",
+      "shortName": "Gold",
+      "rarity": "common",
+      "cost": 6,
+      "accent": "#ffd60a",
+      "description": "Gain +4 chips after a cleared level.",
+      "effects": [{ "type": "chips_end_level", "value": 4 }]
+    },
+    {
+      "id": "sleeve:bull",
+      "name": "Bull",
+      "shortName": "Bull",
+      "rarity": "uncommon",
+      "cost": 5,
+      "accent": "#ef233c",
+      "description": "+2 score for each chip you currently own.",
+      "effects": [{ "type": "score_flat_per_chips", "value": 2 }]
+    },
+    {
+      "id": "sleeve:to-the-moon",
+      "name": "To the Moon",
+      "shortName": "Moon",
+      "rarity": "uncommon",
+      "cost": 5,
+      "accent": "#f1faee",
+      "description": "Extra +1 projected interest for each 5 chips you own.",
+      "effects": [{ "type": "chips_interest_per_5", "value": 1 }]
+    },
+    {
+      "id": "sleeve:acrobat",
+      "name": "Acrobat",
+      "shortName": "Acro",
+      "rarity": "uncommon",
+      "cost": 5,
+      "accent": "#ff006e",
+      "description": "Final hand of the level scores x3.",
+      "effects": [{ "type": "score_mult_if_final_hand", "value": 3 }]
+    },
+    {
+      "id": "sleeve:rough-gem",
+      "name": "Rough Gem",
+      "shortName": "Gem",
+      "rarity": "uncommon",
+      "cost": 9,
+      "accent": "#ffb703",
+      "description": "Rock captures earn +1 chip each.",
+      "effects": [{ "type": "chips_per_attacker_symbol_win", "symbol": "ROCK", "value": 1 }]
+    },
+    {
+      "id": "sleeve:bloodstone",
+      "name": "Bloodstone",
+      "shortName": "Blood",
+      "rarity": "uncommon",
+      "cost": 9,
+      "accent": "#d90429",
+      "description": "Scissors captures have a 1 in 3 chance to score x2.",
+      "effects": [{ "type": "score_mult_per_attacker_symbol_win", "symbol": "SCISSORS", "value": 2, "chance": 0.3333333333 }]
+    },
+    {
+      "id": "sleeve:arrowhead",
+      "name": "Arrowhead",
+      "shortName": "Arrow",
+      "rarity": "uncommon",
+      "cost": 9,
+      "accent": "#7209b7",
+      "description": "Paper captures gain +50 score each.",
+      "effects": [{ "type": "score_flat_per_attacker_symbol_win", "symbol": "PAPER", "value": 50 }]
+    },
+    {
+      "id": "sleeve:onyx-agate",
+      "name": "Onyx Agate",
+      "shortName": "Onyx",
+      "rarity": "uncommon",
+      "cost": 9,
+      "accent": "#6c757d",
+      "description": "Blank captures gain +8 score each.",
+      "effects": [{ "type": "score_flat_per_attacker_symbol_win", "symbol": "BLANK", "value": 8 }]
+    },
+    {
+      "id": "sleeve:seeing-double",
+      "name": "Seeing Double",
+      "shortName": "Double",
+      "rarity": "uncommon",
+      "cost": 6,
+      "accent": "#560bad",
+      "description": "Blank + any other symbol in the same card scores x2.",
+      "effects": [{ "type": "score_mult_if_pattern", "pattern": "straight", "value": 2 }]
+    },
+    {
+      "id": "sleeve:duo",
+      "name": "The Duo",
+      "shortName": "Duo",
+      "rarity": "rare",
+      "cost": 10,
+      "accent": "#06d6a0",
+      "description": "Pair cards score x2.",
+      "effects": [{ "type": "score_mult_if_pattern", "pattern": "pair", "value": 2 }]
+    },
+    {
+      "id": "sleeve:trio",
+      "name": "The Trio",
+      "shortName": "Trio",
+      "rarity": "rare",
+      "cost": 10,
+      "accent": "#06d6a0",
+      "description": "Three of a kind scores x3.",
+      "effects": [{ "type": "score_mult_if_pattern", "pattern": "three_kind", "value": 3 }]
+    },
+    {
+      "id": "sleeve:order",
+      "name": "The Order",
+      "shortName": "Order",
+      "rarity": "rare",
+      "cost": 10,
+      "accent": "#118ab2",
+      "description": "Straight cards score x3.",
+      "effects": [{ "type": "score_mult_if_pattern", "pattern": "straight", "value": 3 }]
+    },
+    {
+      "id": "sleeve:tribe",
+      "name": "The Tribe",
+      "shortName": "Tribe",
+      "rarity": "rare",
+      "cost": 10,
+      "accent": "#118ab2",
+      "description": "Flush cards score x2.",
+      "effects": [{ "type": "score_mult_if_pattern", "pattern": "flush", "value": 2 }]
+    },
+    {
+      "id": "sleeve:bootstraps",
+      "name": "Bootstraps",
+      "shortName": "Boot",
+      "rarity": "uncommon",
+      "cost": 10,
+      "accent": "#8ecae6",
+      "description": "+2 score for every 5 chips you own.",
+      "effects": [{ "type": "score_flat_per_chips", "value": 2, "step": 5 }]
     }
-  ],
-  "effects": {
-    "effect:none": {
-      "type": "none"
-    }
-  }
+  ]
 }

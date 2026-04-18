@@ -1,7 +1,11 @@
 import { createEmptyGrid, executeLaneClash, resolveAttachmentOffset } from './logic';
 import { DeckDefinition, DeckDefinitionFile, loadDeckDefinitionFile } from './definitions/deckdefinition';
-import { drawShopDefinitions, getSpecialCardDefinition } from './special-cards/registry';
-import { CARD_LENGTH, Card, ClashResult, GameConfig, GameState, InitialConfig, InsertEdge, LevelConfig, RPS, ShopOffer, SpecialCardInstance } from './types';
+import { GiftCardDefinition, GiftCardDefinitionFile, loadGiftCardDefinitionFile } from './definitions/giftcarddefinition';
+import { loadPlaymatDefinitionFile, PlaymatDefinition, PlaymatDefinitionFile } from './definitions/playmatdefinition';
+import { loadShopDefinitionFile, ShopDefinitionFile } from './definitions/shopdefinition';
+import { applySleeveEffects, loadSleeveDefinitionFile, SleeveDefinition, SleeveDefinitionFile } from './definitions/sleeveDefinition';
+import { getSpecialCardDefinition } from './special-cards/registry';
+import { CARD_LENGTH, Card, ClashResult, GameConfig, GameState, GiftCardInstance, InitialConfig, InsertEdge, LevelConfig, PlaymatInstance, RPS, ShopOffer, ShopOfferChoice, SpecialCardInstance } from './types';
 
 const SYMBOL_POOL: readonly RPS[] = [RPS.ROCK, RPS.SCISSORS, RPS.PAPER, RPS.BLANK];
 
@@ -65,6 +69,7 @@ const MAP_TO_RPS: Record<string, RPS> = {
   '1': RPS.PAPER,
   '3': RPS.SCISSORS,
   '4': RPS.ROCK,
+  O: RPS.TRICOLOR,
   '7': RPS.TRICOLOR
 };
 
@@ -77,7 +82,8 @@ function cloneCard(card: Card): Card {
 
 function cloneShopOffer(offer: ShopOffer): ShopOffer {
   return {
-    ...offer
+    ...offer,
+    choices: offer.choices?.map((choice) => ({ ...choice }))
   };
 }
 
@@ -87,10 +93,22 @@ function cloneSpecialCard(card: SpecialCardInstance): SpecialCardInstance {
   };
 }
 
+function cloneGiftCard(card: GiftCardInstance): GiftCardInstance {
+  return {
+    ...card
+  };
+}
+
+function clonePlaymat(card: PlaymatInstance): PlaymatInstance {
+  return {
+    ...card
+  };
+}
+
 function createCardFromCode(code: string): Card {
   return {
     id: randomId(),
-    symbols: code.split('').map((digit) => MAP_TO_RPS[digit] ?? RPS.BLANK)
+    symbols: code.toUpperCase().split('').map((digit) => MAP_TO_RPS[digit] ?? RPS.BLANK)
   };
 }
 
@@ -123,17 +141,47 @@ function createDeckFromDefinition(definition: DeckDefinition): Card[] {
   return deck;
 }
 
+function weightedPick<T extends string>(weights: Record<T, number>): T {
+  const entries = Object.entries(weights) as Array<[T, number]>;
+  const total = entries.reduce((sum, [, weight]) => sum + Math.max(0, weight), 0);
+  let roll = Math.random() * Math.max(1, total);
+  for (const [key, weight] of entries) {
+    roll -= Math.max(0, weight);
+    if (roll <= 0) return key;
+  }
+  return entries[0][0];
+}
+
+function shuffleInPlace<T>(items: T[]): T[] {
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+  }
+  return items;
+}
+
+function upgradeSymbol(symbol: RPS): RPS {
+  if (symbol === RPS.BLANK) return RPS.PAPER;
+  if (symbol === RPS.PAPER) return RPS.SCISSORS;
+  if (symbol === RPS.SCISSORS) return RPS.ROCK;
+  return symbol;
+}
+
 export class GameStore {
   private state: GameState;
   private levelConfigs: LevelConfig[] = DEFAULT_LEVELS;
   private deckDefinitionFile: DeckDefinitionFile | null = null;
+  private sleeveDefinitionFile: SleeveDefinitionFile | null = null;
+  private giftCardDefinitionFile: GiftCardDefinitionFile | null = null;
+  private playmatDefinitionFile: PlaymatDefinitionFile | null = null;
+  private shopDefinitionFile: ShopDefinitionFile | null = null;
+  private runDeckTemplate: Card[] = [];
   private initialConfigs: Record<number, InitialConfig> = {
     1: { chips: 10, interestRate: 2, dealsLeft: 4, shufflesLeft: 4 },
     2: { chips: 10, interestRate: 2, dealsLeft: 4, shufflesLeft: 4 },
     3: { chips: 10, interestRate: 2, dealsLeft: 4, shufflesLeft: 4 }
   };
   private selectedDeckConfigIndex = 1;
-  private selectedDeckId: string | null = null;
   private lastPreviewEdge: InsertEdge | null = null;
   private lastPreviewOffset = 0;
   private lastPreviewPointerRatio = 0.5;
@@ -143,12 +191,157 @@ export class GameStore {
   }
 
   async initialize(): Promise<void> {
-    await Promise.all([this.loadLevelConfigs(), this.loadInitialConfig(), this.loadDeckDefinitions()]);
+    await Promise.all([
+      this.loadLevelConfigs(),
+      this.loadInitialConfig(),
+      this.loadDeckDefinitions(),
+      this.loadSleeveDefinitions(),
+      this.loadGiftCardDefinitions(),
+      this.loadPlaymatDefinitions(),
+      this.loadShopDefinitions()
+    ]);
     this.state = this.createInitialState();
   }
 
   private async loadDeckDefinitions(): Promise<void> {
     this.deckDefinitionFile = await loadDeckDefinitionFile();
+  }
+
+  private async loadSleeveDefinitions(): Promise<void> {
+    this.sleeveDefinitionFile = await loadSleeveDefinitionFile();
+  }
+
+  private async loadGiftCardDefinitions(): Promise<void> {
+    this.giftCardDefinitionFile = await loadGiftCardDefinitionFile();
+  }
+
+  private async loadPlaymatDefinitions(): Promise<void> {
+    this.playmatDefinitionFile = await loadPlaymatDefinitionFile();
+  }
+
+  private async loadShopDefinitions(): Promise<void> {
+    this.shopDefinitionFile = await loadShopDefinitionFile();
+  }
+
+  getSleeveDefinitions(): SleeveDefinition[] {
+    return this.sleeveDefinitionFile?.sleeves ?? [];
+  }
+
+  getGiftCardDefinitions(): GiftCardDefinition[] {
+    return this.giftCardDefinitionFile?.giftcards ?? [];
+  }
+
+  getGiftCardInventoryLimit(): number {
+    return this.giftCardDefinitionFile?.inventoryLimit ?? 5;
+  }
+
+  getPlaymatDefinitions(): PlaymatDefinition[] {
+    return this.playmatDefinitionFile?.playmats ?? [];
+  }
+
+  getPlaymatInventoryLimit(): number {
+    return this.playmatDefinitionFile?.inventoryLimit ?? 5;
+  }
+
+  getOwnedSleeveDefinitions(): SleeveDefinition[] {
+    return this.state.sleeves
+      .map((sleeve) => this.getSleeveDefinitions().find((definition) => definition.id === sleeve.definitionId) ?? null)
+      .filter((definition): definition is SleeveDefinition => definition !== null);
+  }
+
+  getGiftCardDefinitionById(definitionId: string): GiftCardDefinition | null {
+    return this.getGiftCardDefinitions().find((definition) => definition.id === definitionId) ?? null;
+  }
+
+  getPlaymatDefinitionById(definitionId: string): PlaymatDefinition | null {
+    return this.getPlaymatDefinitions().find((definition) => definition.id === definitionId) ?? null;
+  }
+
+  getShopDefinition(): ShopDefinitionFile {
+    return this.shopDefinitionFile ?? {
+      version: 1,
+      offerSlotCount: SHOP_OFFER_COUNT,
+      offerFormWeights: { direct: 70, pack: 30 },
+      directTypeWeights: { sleeve: 25, giftcard: 15, playmat: 15, card: 45 },
+      packTypeWeights: { sleeve: 20, giftcard: 15, playmat: 25, card: 40 },
+      packChoiceCountWeights: { '2': 65, '3': 35 },
+      packCostMultiplier: 1.6,
+      cardPricing: {
+        base: 2,
+        rock: 2,
+        scissors: 2,
+        paper: 1,
+        blank: 0,
+        tricolor: 4,
+        duplicateDiscount: 1,
+        diversityBonus: 1,
+        tricolorMixBonus: 2
+      }
+    };
+  }
+
+  private getShopCardCodePool(): string[] {
+    const basicDigits = ['0', '1', '3', '4'];
+    const pool: string[] = [];
+    for (const a of basicDigits) {
+      for (const b of basicDigits) {
+        for (const c of basicDigits) {
+          pool.push(`${a}${b}${c}`);
+        }
+      }
+    }
+    for (const a of [...basicDigits, 'O']) {
+      for (const b of [...basicDigits, 'O']) {
+        for (const c of [...basicDigits, 'O']) {
+          const code = `${a}${b}${c}`;
+          if (!code.includes('O')) continue;
+          pool.push(code);
+        }
+      }
+    }
+    return Array.from(new Set(pool));
+  }
+
+  estimateShopCardCost(code: string): number {
+    const pricing = this.getShopDefinition().cardPricing;
+    const digits = code.toUpperCase().split('');
+    const counts = new Map<string, number>();
+    let total = pricing.base;
+    digits.forEach((digit) => {
+      counts.set(digit, (counts.get(digit) ?? 0) + 1);
+      if (digit === '4') total += pricing.rock;
+      else if (digit === '3') total += pricing.scissors;
+      else if (digit === '1') total += pricing.paper;
+      else if (digit === '0') total += pricing.blank;
+      else total += pricing.tricolor;
+    });
+    if (counts.size === 1) total = Math.max(1, total - pricing.duplicateDiscount);
+    if (counts.size === 3) total += pricing.diversityBonus;
+    if (counts.has('O') && counts.size > 1) total += pricing.tricolorMixBonus;
+    return total;
+  }
+
+  private buildCardChoice(code: string): ShopOfferChoice {
+    return { kind: 'card', cardCode: code };
+  }
+
+  private applyShopChoice(choice: ShopOfferChoice): boolean {
+    if (choice.kind === 'sleeve' && choice.definitionId) {
+      if (this.state.sleeves.length >= (this.sleeveDefinitionFile?.slotLimit ?? 2)) return false;
+      this.state.sleeves.push({ instanceId: randomId(), definitionId: choice.definitionId });
+      return true;
+    }
+    if (choice.kind === 'giftcard' && choice.definitionId) {
+      return this.addGiftCardToInventory(choice.definitionId);
+    }
+    if (choice.kind === 'playmat' && choice.definitionId) {
+      return this.addPlaymatToInventory(choice.definitionId);
+    }
+    if (choice.kind === 'card' && choice.cardCode) {
+      this.runDeckTemplate.push(createCardFromCode(choice.cardCode));
+      return true;
+    }
+    return false;
   }
 
   getDeckDefinitions(): DeckDefinition[] {
@@ -189,14 +382,23 @@ export class GameStore {
       shufflesLeft: conf.shufflesLeft,
       dealsLeft: conf.dealsLeft,
       selectedCardIds: [],
-      status: 'CHOOSE_DECK',
+      status: 'HOME',
       lastClash: null,
       preview: null,
       lastInterestEarned: 0,
       lastLevelReward: 0,
       pendingReward: null,
       shopOffers: [],
-      specialCards: []
+      specialCards: [],
+      sleeves: [],
+      giftCards: [],
+      playmats: [],
+      activePlaymatDefinitionId: null,
+      openedPackOfferId: null,
+      handsPlayedThisRun: 0,
+      handsPlayedThisLevel: 0,
+      dealsUsedThisLevel: 0,
+      lastUsedGiftCardDefinitionId: null
     };
   }
 
@@ -209,6 +411,7 @@ export class GameStore {
       pierceMultiplier: result.pierceMultiplier ?? 1,
       laneScores: [...result.laneScores],
       replacedCells: result.replacedCells.map((cell) => ({ ...cell })),
+      captureEvents: result.captureEvents?.map((event) => ({ ...event })) ?? [],
       shiftedLanes: result.shiftedLanes?.map((lane) => ({ ...lane })) ?? []
     };
   }
@@ -231,21 +434,117 @@ export class GameStore {
       const definition = getSpecialCardDefinition(specialCard.definitionId);
       return definition?.modifyProjectedInterest ? definition.modifyProjectedInterest(currentValue) : currentValue;
     }, baseInterest);
+    const sleeveBonus = this.getOwnedSleeveDefinitions().reduce((bonus, sleeve) => {
+      return bonus + sleeve.effects.reduce((effectBonus, effect) => {
+        if (effect.type !== 'chips_interest_per_5') return effectBonus;
+        return effectBonus + Math.floor(this.state.chips / 5) * effect.value;
+      }, 0);
+    }, 0);
 
-    return Math.max(0, Math.floor(modifiedInterest));
+    return Math.max(0, Math.floor(modifiedInterest + sleeveBonus));
+  }
+
+  private getSelectedHandCardsOrdered(): Card[] {
+    return this.state.selectedCardIds
+      .map((selectedId) => this.state.hand.find((card) => card.id === selectedId) ?? null)
+      .filter((card): card is Card => card !== null);
+  }
+
+  private drawRandomCardsToHand(targetSize = 5): void {
+    while (this.state.hand.length < targetSize && this.state.deck.length > 0) {
+      const deckIndex = Math.floor(Math.random() * this.state.deck.length);
+      const nextCard = this.state.deck.splice(deckIndex, 1)[0];
+      if (nextCard) this.state.hand.push(nextCard);
+    }
+  }
+
+  private addGiftCardToInventory(definitionId: string): boolean {
+    if (this.state.giftCards.length >= this.getGiftCardInventoryLimit()) return false;
+    if (!this.getGiftCardDefinitionById(definitionId)) return false;
+    this.state.giftCards.push({ instanceId: randomId(), definitionId });
+    return true;
+  }
+
+  private addPlaymatToInventory(definitionId: string): boolean {
+    if (this.state.playmats.length >= this.getPlaymatInventoryLimit()) return false;
+    if (!this.getPlaymatDefinitionById(definitionId)) return false;
+    this.state.playmats.push({ instanceId: randomId(), definitionId });
+    return true;
+  }
+
+  private addRandomGiftCards(count: number): void {
+    const definitions = shuffleInPlace([...this.getGiftCardDefinitions()]);
+    let remaining = count;
+    while (remaining > 0 && definitions.length > 0 && this.state.giftCards.length < this.getGiftCardInventoryLimit()) {
+      const definition = definitions.shift();
+      if (!definition) break;
+      this.addGiftCardToInventory(definition.id);
+      remaining -= 1;
+    }
+  }
+
+  private addRandomPlaymats(count: number): void {
+    const definitions = shuffleInPlace([...this.getPlaymatDefinitions()]);
+    let remaining = count;
+    while (remaining > 0 && definitions.length > 0 && this.state.playmats.length < this.getPlaymatInventoryLimit()) {
+      const definition = definitions.shift();
+      if (!definition) break;
+      this.addPlaymatToInventory(definition.id);
+      remaining -= 1;
+    }
+  }
+
+  private addRandomSleeves(count: number): void {
+    const ownedIds = new Set(this.state.sleeves.map((sleeve) => sleeve.definitionId));
+    const available = shuffleInPlace(this.getSleeveDefinitions().filter((definition) => !ownedIds.has(definition.id)));
+    while (count > 0 && available.length > 0 && this.state.sleeves.length < (this.sleeveDefinitionFile?.slotLimit ?? 2)) {
+      const definition = available.shift();
+      if (!definition) break;
+      this.state.sleeves.push({ instanceId: randomId(), definitionId: definition.id });
+      count -= 1;
+    }
+  }
+
+  private getSleeveClashBonus(card: Card, result: ClashResult): { scoreDelta: number; chipsDelta: number } {
+    const ownedSleeves = this.getOwnedSleeveDefinitions();
+    let flatScore = 0;
+    let multiplier = 1;
+    let chipsDelta = 0;
+
+    ownedSleeves.forEach((definition) => {
+      const applied = applySleeveEffects(definition, {
+        card,
+        result,
+        ownedSleeveCount: ownedSleeves.length,
+        emptySleeveSlots: Math.max(0, (this.sleeveDefinitionFile?.slotLimit ?? 2) - ownedSleeves.length),
+        dealsLeft: this.state.dealsLeft,
+        remainingDeckCount: this.state.deck.length,
+        currentChips: this.state.chips,
+        handsPlayedThisRun: this.state.handsPlayedThisRun,
+        isFinalHand: this.state.hand.length <= 1,
+        random: Math.random
+      });
+      flatScore += applied.flatScore;
+      multiplier *= applied.multiplier;
+      chipsDelta += applied.chipsDelta;
+    });
+
+    const adjustedScore = Math.max(0, Math.floor((result.scoreDelta + flatScore) * multiplier));
+    return {
+      scoreDelta: adjustedScore,
+      chipsDelta
+    };
   }
 
   private buildDeckForCurrentLevel(): void {
-    const allDecks = this.getDeckDefinitions();
-    const selectedDeck = allDecks.find((deck) => deck.id === this.selectedDeckId) ?? allDecks[0];
-    const fullDeck = selectedDeck ? createDeckFromDefinition(selectedDeck) : [];
+    const fullDeck = shuffleInPlace(this.runDeckTemplate.map((card) => cloneCard(card)));
     this.state.hand = fullDeck.slice(0, 5);
     this.state.deck = fullDeck.slice(5);
     this.state.discardPile = [];
   }
 
   private getPerLevelResourceBonuses(): { deals: number; shuffles: number } {
-    return this.state.specialCards.reduce(
+    const fromSpecials = this.state.specialCards.reduce(
       (accumulator, specialCard) => {
         const definition = getSpecialCardDefinition(specialCard.definitionId);
         accumulator.deals += definition?.bonusDealsPerLevel ?? 0;
@@ -254,6 +553,17 @@ export class GameStore {
       },
       { deals: 0, shuffles: 0 }
     );
+
+    const sleeveDealBonus = this.getOwnedSleeveDefinitions().reduce((sum, sleeve) => {
+      return sum + sleeve.effects.reduce((effectSum, effect) => {
+        return effect.type === 'bonus_deals_per_level' ? effectSum + effect.value : effectSum;
+      }, 0);
+    }, 0);
+
+    return {
+      deals: fromSpecials.deals + sleeveDealBonus,
+      shuffles: fromSpecials.shuffles
+    };
   }
 
   private applyLevelConfig(level = this.state.currentLevel): void {
@@ -342,15 +652,25 @@ export class GameStore {
       lastClash: this.state.lastClash ? this.cloneClashResult(this.state.lastClash) : null,
       pendingReward: this.state.pendingReward ? { ...this.state.pendingReward } : null,
       shopOffers: this.state.shopOffers.map((offer) => cloneShopOffer(offer)),
-      specialCards: this.state.specialCards.map((specialCard) => cloneSpecialCard(specialCard))
+      specialCards: this.state.specialCards.map((specialCard) => cloneSpecialCard(specialCard)),
+      sleeves: this.state.sleeves.map((sleeve) => cloneSpecialCard(sleeve)),
+      giftCards: this.state.giftCards.map((giftCard) => cloneGiftCard(giftCard)),
+      playmats: this.state.playmats.map((playmat) => clonePlaymat(playmat))
     };
+  }
+
+  openDeckSelect(): void {
+    if (this.state.status !== 'HOME') return;
+    this.state.status = 'CHOOSE_DECK';
   }
 
   chooseDeckById(deckId: string): void {
     if (this.state.status !== 'CHOOSE_DECK') return;
-    const deckIndex = this.getDeckDefinitions().findIndex((deck) => deck.id === deckId);
-    this.selectedDeckId = deckId;
+    const deckDefinitions = this.getDeckDefinitions();
+    const deckIndex = deckDefinitions.findIndex((deck) => deck.id === deckId);
+    const selectedDeck = deckDefinitions.find((deck) => deck.id === deckId) ?? deckDefinitions[0];
     this.selectedDeckConfigIndex = deckIndex >= 0 ? Math.min(3, deckIndex + 1) : 1;
+    this.runDeckTemplate = selectedDeck ? createDeckFromDefinition(selectedDeck) : [];
     this.refillRoundResources();
     this.buildDeckForCurrentLevel();
     this.state.status = 'PLAYING';
@@ -417,7 +737,8 @@ export class GameStore {
       return;
     }
     const res = executeLaneClash(this.state.matrix.grid, edge, selectedCard, this.lastPreviewOffset);
-    this.state.preview = { ...res, insertedCardId: selectedCard.id };
+    const sleeveBonus = this.getSleeveClashBonus(selectedCard, { ...res, insertedCardId: selectedCard.id });
+    this.state.preview = { ...res, insertedCardId: selectedCard.id, scoreDelta: sleeveBonus.scoreDelta };
   }
 
   playSelectedToEdge(edge: InsertEdge): ClashResult | null {
@@ -426,21 +747,27 @@ export class GameStore {
     const selectedCard = this.state.hand.find((card) => card.id === lastSelected);
     if (!selectedCard) return null;
     const res = executeLaneClash(this.state.matrix.grid, edge, selectedCard, this.lastPreviewOffset);
-    return { ...res, insertedCardId: selectedCard.id };
+    const sleeveBonus = this.getSleeveClashBonus(selectedCard, { ...res, insertedCardId: selectedCard.id });
+    return { ...res, insertedCardId: selectedCard.id, scoreDelta: sleeveBonus.scoreDelta };
   }
 
   applyClashResult(result: ClashResult): void {
+    const playedCard = this.state.hand.find((item) => item.id === result.insertedCardId) ?? null;
+    const sleeveBonus = playedCard ? this.getSleeveClashBonus(playedCard, result) : { scoreDelta: result.scoreDelta, chipsDelta: 0 };
     this.state.matrix = {
       size: result.newGrid.length,
       grid: result.newGrid.map((row) => [...row])
     };
-    this.state.currentScore += result.scoreDelta;
+    this.state.currentScore += sleeveBonus.scoreDelta;
     this.state.currentScore -= (result.penalty || 0);
-    this.state.lastClash = this.cloneClashResult(result);
-    const card = this.state.hand.find((item) => item.id === result.insertedCardId);
+    this.state.lastClash = this.cloneClashResult({ ...result, scoreDelta: sleeveBonus.scoreDelta });
+    const card = playedCard;
     if (card) this.state.discardPile.push(card);
     this.state.hand = this.state.hand.filter((item) => item.id !== result.insertedCardId);
     this.state.chips += this.state.hand.length;
+    this.state.chips += sleeveBonus.chipsDelta;
+    this.state.handsPlayedThisRun += 1;
+    this.state.handsPlayedThisLevel += 1;
     this.state.selectedCardIds = [];
     this.state.preview = null;
     this.lastPreviewEdge = null;
@@ -456,7 +783,12 @@ export class GameStore {
       const currentLevelConfig = this.getCurrentLevelConfigInternal();
       const interestEarned = this.getProjectedInterest();
       const levelReward = currentLevelConfig.reward;
-      const totalReward = interestEarned + levelReward;
+      const sleeveReward = this.getOwnedSleeveDefinitions().reduce((sum, sleeve) => {
+        return sum + sleeve.effects.reduce((effectSum, effect) => {
+          return effect.type === 'chips_end_level' ? effectSum + effect.value : effectSum;
+        }, 0);
+      }, 0);
+      const totalReward = interestEarned + levelReward + sleeveReward;
 
       this.state.chips += totalReward;
       this.state.lastInterestEarned = interestEarned;
@@ -467,7 +799,7 @@ export class GameStore {
         levelName: currentLevelConfig.name,
         goal: currentLevelConfig.goal,
         baseReward: levelReward,
-        interestReward: interestEarned,
+        interestReward: interestEarned + sleeveReward,
         totalReward,
         finalLevel: this.state.currentLevel >= this.levelConfigs.length
       };
@@ -485,15 +817,84 @@ export class GameStore {
 
   openShop(): void {
     if (this.state.status !== 'ROUND_REWARD') return;
+    const shopDefinition = this.getShopDefinition();
+    const ownedSleeveIds = new Set(this.state.sleeves.map((card) => card.definitionId));
+    const cardPool = shuffleInPlace(this.getShopCardCodePool());
 
-    const ownedDefinitionIds = this.state.specialCards.map((card) => card.definitionId);
-    const definitions = drawShopDefinitions(ownedDefinitionIds, SHOP_OFFER_COUNT);
-    this.state.shopOffers = definitions.map((definition) => ({
-      offerId: randomId(),
-      definitionId: definition.id,
-      cost: definition.cost,
-      purchased: false
-    }));
+    const buildDirectOffer = (): ShopOffer | null => {
+      const kind = weightedPick(shopDefinition.directTypeWeights as Record<'sleeve' | 'giftcard' | 'playmat' | 'card', number>);
+      if (kind === 'sleeve') {
+        if (this.state.sleeves.length >= (this.sleeveDefinitionFile?.slotLimit ?? 2)) return null;
+        const sleeve = shuffleInPlace(this.getSleeveDefinitions().filter((definition) => !ownedSleeveIds.has(definition.id)))[0];
+        if (!sleeve) return null;
+        ownedSleeveIds.add(sleeve.id);
+        return { offerId: randomId(), form: 'direct', kind, definitionId: sleeve.id, cost: sleeve.cost, purchased: false };
+      }
+      if (kind === 'giftcard') {
+        if (this.state.giftCards.length >= this.getGiftCardInventoryLimit()) return null;
+        const gift = shuffleInPlace([...this.getGiftCardDefinitions()])[0];
+        if (!gift) return null;
+        return { offerId: randomId(), form: 'direct', kind, definitionId: gift.id, cost: gift.cost, purchased: false };
+      }
+      if (kind === 'playmat') {
+        if (this.state.playmats.length >= this.getPlaymatInventoryLimit()) return null;
+        const playmat = shuffleInPlace([...this.getPlaymatDefinitions()])[0];
+        if (!playmat) return null;
+        return { offerId: randomId(), form: 'direct', kind, definitionId: playmat.id, cost: playmat.cost, purchased: false };
+      }
+      const code = cardPool.pop();
+      if (!code) return null;
+      return { offerId: randomId(), form: 'direct', kind, cardCode: code, cost: this.estimateShopCardCost(code), purchased: false };
+    };
+
+    const buildPackOffer = (): ShopOffer | null => {
+      const kind = weightedPick(shopDefinition.packTypeWeights as Record<'sleeve' | 'giftcard' | 'playmat' | 'card', number>);
+      const choiceCount = Number(weightedPick(shopDefinition.packChoiceCountWeights as Record<'2' | '3', number>));
+      const choices: ShopOfferChoice[] = [];
+
+      if (kind === 'sleeve') {
+        const candidates = shuffleInPlace(this.getSleeveDefinitions().filter((definition) => !ownedSleeveIds.has(definition.id))).slice(0, choiceCount);
+        candidates.forEach((definition) => choices.push({ kind, definitionId: definition.id }));
+      } else if (kind === 'giftcard') {
+        shuffleInPlace([...this.getGiftCardDefinitions()]).slice(0, choiceCount).forEach((definition) => {
+          choices.push({ kind, definitionId: definition.id });
+        });
+      } else if (kind === 'playmat') {
+        shuffleInPlace([...this.getPlaymatDefinitions()]).slice(0, choiceCount).forEach((definition) => {
+          choices.push({ kind, definitionId: definition.id });
+        });
+      } else {
+        cardPool.splice(0, choiceCount).forEach((code) => choices.push(this.buildCardChoice(code)));
+      }
+
+      if (choices.length === 0) return null;
+      const baseCosts = choices.map((choice) => {
+        if (choice.kind === 'sleeve' && choice.definitionId) {
+          return this.getSleeveDefinitions().find((definition) => definition.id === choice.definitionId)?.cost ?? 5;
+        }
+        if (choice.kind === 'giftcard' && choice.definitionId) {
+          return this.getGiftCardDefinitionById(choice.definitionId)?.cost ?? 5;
+        }
+        if (choice.kind === 'playmat' && choice.definitionId) {
+          return this.getPlaymatDefinitionById(choice.definitionId)?.cost ?? 5;
+        }
+        return this.estimateShopCardCost(choice.cardCode ?? '000');
+      });
+      const packCost = Math.max(3, Math.floor(Math.max(...baseCosts) * shopDefinition.packCostMultiplier));
+      return { offerId: randomId(), form: 'pack', kind, cost: packCost, purchased: false, choices };
+    };
+
+    const offers: ShopOffer[] = [];
+    while (offers.length < shopDefinition.offerSlotCount) {
+      const form = weightedPick(shopDefinition.offerFormWeights as Record<'direct' | 'pack', number>);
+      const nextOffer = form === 'pack' ? buildPackOffer() : buildDirectOffer();
+      if (!nextOffer) break;
+      offers.push(nextOffer);
+    }
+
+    this.state.shopOffers = offers;
+    this.state.openedPackOfferId = null;
+    this.state.activePlaymatDefinitionId = null;
     this.state.status = 'SHOP';
   }
 
@@ -503,28 +904,36 @@ export class GameStore {
     const offer = this.state.shopOffers.find((candidate) => candidate.offerId === offerId);
     if (!offer || offer.purchased || this.state.chips < offer.cost) return;
 
-    const definition = getSpecialCardDefinition(offer.definitionId);
-    if (!definition) return;
-
     this.state.chips -= offer.cost;
     offer.purchased = true;
-    this.state.specialCards.push({
-      instanceId: randomId(),
-      definitionId: definition.id
-    });
 
-    const applyResult = definition.applyOnAcquire?.({
-      chips: this.state.chips,
-      projectedInterest: this.getProjectedInterest(),
-      dealsLeft: this.state.dealsLeft,
-      shufflesLeft: this.state.shufflesLeft
-    });
-
-    if (applyResult) {
-      this.state.chips += applyResult.chipsDelta ?? 0;
-      this.state.dealsLeft += applyResult.dealsDelta ?? 0;
-      this.state.shufflesLeft += applyResult.shufflesDelta ?? 0;
+    if (offer.form === 'pack') {
+      this.state.openedPackOfferId = offer.offerId;
+      return;
     }
+
+    if (!this.applyShopChoice({
+      kind: offer.kind,
+      definitionId: offer.definitionId,
+      cardCode: offer.cardCode
+    })) {
+      this.state.chips += offer.cost;
+      offer.purchased = false;
+    }
+  }
+
+  choosePackChoice(offerId: string, choiceIndex: number): boolean {
+    if (this.state.status !== 'SHOP') return false;
+    const offer = this.state.shopOffers.find((candidate) => candidate.offerId === offerId);
+    if (!offer || offer.form !== 'pack' || !offer.purchased || !offer.choices?.[choiceIndex]) return false;
+    const choice = offer.choices[choiceIndex];
+    if (!this.applyShopChoice(choice)) return false;
+    this.state.openedPackOfferId = null;
+    return true;
+  }
+
+  skipOpenedPack(): void {
+    this.state.openedPackOfferId = null;
   }
 
   continueAfterShop(): void {
@@ -555,6 +964,9 @@ export class GameStore {
     this.state.lastLevelReward = 0;
     this.state.pendingReward = null;
     this.state.shopOffers = [];
+    this.state.openedPackOfferId = null;
+    this.state.activePlaymatDefinitionId = null;
+    this.state.handsPlayedThisLevel = 0;
     this.lastPreviewEdge = null;
     this.lastPreviewOffset = 0;
     this.lastPreviewPointerRatio = 0.5;
@@ -599,6 +1011,7 @@ export class GameStore {
     }
 
     this.state.dealsLeft -= 1;
+    this.state.dealsUsedThisLevel += 1;
     this.state.selectedCardIds = [];
     this.state.preview = null;
     this.lastPreviewEdge = null;
@@ -612,15 +1025,122 @@ export class GameStore {
         this.state.status = 'GAME_OVER';
         this.state.selectedCardIds = [];
       }
+      this.state.activePlaymatDefinitionId = null;
     }
   }
 
   resetGame(): void {
     this.selectedDeckConfigIndex = 1;
-    this.selectedDeckId = null;
+    this.runDeckTemplate = [];
     this.lastPreviewEdge = null;
     this.lastPreviewOffset = 0;
     this.lastPreviewPointerRatio = 0.5;
     this.state = this.createInitialState();
+  }
+
+  useGiftCard(instanceId: string): boolean {
+    if (this.state.status !== 'SHOP') return false;
+    const instanceIndex = this.state.giftCards.findIndex((card) => card.instanceId === instanceId);
+    if (instanceIndex === -1) return false;
+    const definition = this.getGiftCardDefinitionById(this.state.giftCards[instanceIndex].definitionId);
+    if (!definition) return false;
+
+    const removeGift = () => {
+      this.state.lastUsedGiftCardDefinitionId = definition.id;
+      this.state.giftCards.splice(instanceIndex, 1);
+    };
+
+    switch (definition.effect.type) {
+      case 'copy_last_used':
+        if (!this.state.lastUsedGiftCardDefinitionId || this.state.lastUsedGiftCardDefinitionId === definition.id) return false;
+        if (!this.addGiftCardToInventory(this.state.lastUsedGiftCardDefinitionId)) return false;
+        removeGift();
+        return true;
+      case 'spawn_random_giftcards':
+        this.addRandomGiftCards(definition.effect.count);
+        removeGift();
+        return true;
+      case 'spawn_random_playmats':
+        this.addRandomPlaymats(definition.effect.count);
+        removeGift();
+        return true;
+      case 'double_money_cap':
+        this.state.chips += Math.min(this.state.chips, definition.effect.cap);
+        removeGift();
+        return true;
+      case 'add_random_sleeve':
+        this.addRandomSleeves(definition.effect.count);
+        removeGift();
+        return true;
+    }
+  }
+
+  usePlaymat(instanceId: string): boolean {
+    if (this.state.status !== 'PLAYING' || this.state.activePlaymatDefinitionId) return false;
+    const instanceIndex = this.state.playmats.findIndex((card) => card.instanceId === instanceId);
+    if (instanceIndex === -1) return false;
+    const definition = this.getPlaymatDefinitionById(this.state.playmats[instanceIndex].definitionId);
+    if (!definition) return false;
+
+    const selectedCards = this.getSelectedHandCardsOrdered();
+    const removePlaymat = () => {
+      this.state.activePlaymatDefinitionId = definition.id;
+      this.state.playmats.splice(instanceIndex, 1);
+      this.state.preview = null;
+      this.lastPreviewEdge = null;
+      this.lastPreviewOffset = 0;
+      this.lastPreviewPointerRatio = 0.5;
+    };
+
+    switch (definition.effect.type) {
+      case 'transform_selected_to_symbol': {
+        const effect = definition.effect;
+        const targets = selectedCards.slice(0, effect.count);
+        if (targets.length === 0) return false;
+        const targetIds = new Set(targets.map((card) => card.id));
+        this.state.hand = this.state.hand.map((card) => {
+          if (!targetIds.has(card.id)) return card;
+          return { ...card, symbols: card.symbols.map(() => effect.symbol) };
+        });
+        removePlaymat();
+        return true;
+      }
+      case 'increase_selected_card_weight': {
+        const effect = definition.effect;
+        const targets = selectedCards.slice(0, effect.count);
+        if (targets.length === 0) return false;
+        const targetIds = new Set(targets.map((card) => card.id));
+        this.state.hand = this.state.hand.map((card) => {
+          if (!targetIds.has(card.id)) return card;
+          let next = cloneCard(card);
+          for (let step = 0; step < effect.amount; step += 1) {
+            next = { ...next, symbols: next.symbols.map((symbol) => upgradeSymbol(symbol)) };
+          }
+          return next;
+        });
+        removePlaymat();
+        return true;
+      }
+      case 'destroy_selected_cards': {
+        const targets = selectedCards.slice(0, definition.effect.count);
+        if (targets.length === 0) return false;
+        const targetIds = new Set(targets.map((card) => card.id));
+        this.state.hand = this.state.hand.filter((card) => !targetIds.has(card.id));
+        this.drawRandomCardsToHand();
+        this.state.selectedCardIds = [];
+        removePlaymat();
+        return true;
+      }
+      case 'copy_right_card_to_left_card': {
+        if (selectedCards.length < 2) return false;
+        const [leftCard, rightCard] = selectedCards;
+        this.state.hand = this.state.hand.map((card) => {
+          if (card.id !== leftCard.id) return card;
+          return { ...card, symbols: [...rightCard.symbols], isFlipped: rightCard.isFlipped };
+        });
+        removePlaymat();
+        return true;
+      }
+    }
   }
 }

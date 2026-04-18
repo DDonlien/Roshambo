@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://jxjehdgh11st"
+
+[deps]
+
+files=["res://Definitions/levels.goal.translation", "res://Definitions/levels.reward.translation"]
+
+source_file="res://Definitions/levels.csv"
+dest_files=["res://Definitions/levels.goal.translation", "res://Definitions/levels.reward.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

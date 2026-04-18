@@ -1,0 +1,242 @@
+[gd_scene load_steps=5 format=3 uid="uid://dth8v7u4p4g1p"]
+
+[ext_resource type="Script" path="res://Scripts/UI/GameUI.cs" id="1_4nq6s"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0x8qy"]
+bg_color = Color(0.184314, 0.247059, 0.270588, 1)
+content_margin_left = 14.0
+content_margin_top = 14.0
+content_margin_right = 14.0
+content_margin_bottom = 14.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_gjsa1"]
+bg_color = Color(0, 0, 0, 0.72)
+
+[node name="UI" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_4nq6s")
+
+[node name="Layout" type="HBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Sidebar" type="PanelContainer" parent="Layout"]
+custom_minimum_size = Vector2(280, 0)
+theme_override_styles/panel = SubResource("StyleBoxFlat_0x8qy")
+
+[node name="SidebarRoot" type="VBoxContainer" parent="Layout/Sidebar"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Header" type="HBoxContainer" parent="Layout/Sidebar/SidebarRoot"]
+size_flags_horizontal = 3
+
+[node name="Title" type="Label" parent="Layout/Sidebar/SidebarRoot/Header"]
+text = "Roshambo!"
+size_flags_horizontal = 3
+horizontal_alignment = 1
+
+[node name="Lang" type="Button" parent="Layout/Sidebar/SidebarRoot/Header"]
+text = "EN"
+disabled = true
+custom_minimum_size = Vector2(48, 48)
+
+[node name="StageBox" type="HBoxContainer" parent="Layout/Sidebar/SidebarRoot"]
+size_flags_horizontal = 3
+
+[node name="LevelIcon" type="TextureRect" parent="Layout/Sidebar/SidebarRoot/StageBox"]
+custom_minimum_size = Vector2(46, 46)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="StageCopy" type="VBoxContainer" parent="Layout/Sidebar/SidebarRoot/StageBox"]
+size_flags_horizontal = 3
+
+[node name="Level" type="Label" parent="Layout/Sidebar/SidebarRoot/StageBox/StageCopy"]
+text = "STAGE 1/9"
+
+[node name="LevelName" type="Label" parent="Layout/Sidebar/SidebarRoot/StageBox/StageCopy"]
+text = "Pocket"
+
+[node name="Goal" type="Label" parent="Layout/Sidebar/SidebarRoot/StageBox"]
+text = "10"
+horizontal_alignment = 2
+size_flags_horizontal = 10
+
+[node name="ScoreRow" type="HBoxContainer" parent="Layout/Sidebar/SidebarRoot"]
+size_flags_horizontal = 3
+
+[node name="ScoreLabel" type="Label" parent="Layout/Sidebar/SidebarRoot/ScoreRow"]
+text = "SCORE"
+size_flags_horizontal = 3
+
+[node name="Score" type="Label" parent="Layout/Sidebar/SidebarRoot/ScoreRow"]
+text = "0"
+horizontal_alignment = 2
+
+[node name="ChipsRow" type="HBoxContainer" parent="Layout/Sidebar/SidebarRoot"]
+size_flags_horizontal = 3
+
+[node name="ChipsLabel" type="Label" parent="Layout/Sidebar/SidebarRoot/ChipsRow"]
+text = "CHIPS"
+size_flags_horizontal = 3
+
+[node name="Chips" type="Label" parent="Layout/Sidebar/SidebarRoot/ChipsRow"]
+text = "10"
+horizontal_alignment = 2
+
+[node name="InterestPreview" type="Label" parent="Layout/Sidebar/SidebarRoot"]
+text = "+0"
+horizontal_alignment = 2
+
+[node name="DeckActions" type="HBoxContainer" parent="Layout/Sidebar/SidebarRoot"]
+size_flags_horizontal = 3
+
+[node name="ShuffleBtn" type="Button" parent="Layout/Sidebar/SidebarRoot/DeckActions"]
+text = "SHUFFLE"
+size_flags_horizontal = 3
+
+[node name="ShuffleCount" type="Label" parent="Layout/Sidebar/SidebarRoot/DeckActions"]
+text = "4"
+horizontal_alignment = 1
+
+[node name="DealBtn" type="Button" parent="Layout/Sidebar/SidebarRoot/DeckActions"]
+text = "DEAL CARD"
+size_flags_horizontal = 3
+
+[node name="DealCount" type="Label" parent="Layout/Sidebar/SidebarRoot/DeckActions"]
+text = "4"
+horizontal_alignment = 1
+
+[node name="ActionRow" type="HBoxContainer" parent="Layout/Sidebar/SidebarRoot"]
+size_flags_horizontal = 3
+
+[node name="EndBtn" type="Button" parent="Layout/Sidebar/SidebarRoot/ActionRow"]
+text = "END"
+size_flags_horizontal = 3
+
+[node name="RotateBtn" type="Button" parent="Layout/Sidebar/SidebarRoot/ActionRow"]
+text = "Rotate"
+size_flags_horizontal = 3
+
+[node name="PlayArea" type="Control" parent="Layout"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PlayRoot" type="VBoxContainer" parent="Layout/PlayArea"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="SpecialCards" type="HBoxContainer" parent="Layout/PlayArea/PlayRoot"]
+size_flags_horizontal = 3
+
+[node name="MatrixWrapper" type="Control" parent="Layout/PlayArea/PlayRoot"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="MatrixGrid" type="GridContainer" parent="Layout/PlayArea/PlayRoot/MatrixWrapper"]
+columns = 3
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -180.0
+offset_right = 180.0
+offset_bottom = 180.0
+
+[node name="DropZoneTop" type="Control" parent="Layout/PlayArea/PlayRoot/MatrixWrapper"]
+mouse_filter = 1
+
+[node name="DropZoneBottom" type="Control" parent="Layout/PlayArea/PlayRoot/MatrixWrapper"]
+mouse_filter = 1
+
+[node name="DropZoneLeft" type="Control" parent="Layout/PlayArea/PlayRoot/MatrixWrapper"]
+mouse_filter = 1
+
+[node name="DropZoneRight" type="Control" parent="Layout/PlayArea/PlayRoot/MatrixWrapper"]
+mouse_filter = 1
+
+[node name="PreviewBox" type="Control" parent="Layout/PlayArea/PlayRoot/MatrixWrapper"]
+visible = false
+mouse_filter = 1
+
+[node name="BottomArea" type="HBoxContainer" parent="Layout/PlayArea/PlayRoot"]
+custom_minimum_size = Vector2(0, 170)
+size_flags_horizontal = 3
+
+[node name="DeckPile" type="VBoxContainer" parent="Layout/PlayArea/PlayRoot/BottomArea"]
+custom_minimum_size = Vector2(110, 150)
+mouse_filter = 1
+
+[node name="DeckIcon" type="TextureRect" parent="Layout/PlayArea/PlayRoot/BottomArea/DeckPile"]
+custom_minimum_size = Vector2(92, 124)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DeckCount" type="Label" parent="Layout/PlayArea/PlayRoot/BottomArea/DeckPile"]
+text = "0"
+horizontal_alignment = 1
+
+[node name="DeckLabel" type="Label" parent="Layout/PlayArea/PlayRoot/BottomArea/DeckPile"]
+text = "DECK"
+horizontal_alignment = 1
+
+[node name="HandRow" type="HBoxContainer" parent="Layout/PlayArea/PlayRoot/BottomArea"]
+size_flags_horizontal = 3
+
+[node name="DiscardPile" type="VBoxContainer" parent="Layout/PlayArea/PlayRoot/BottomArea"]
+custom_minimum_size = Vector2(110, 150)
+mouse_filter = 1
+
+[node name="DiscardIcon" type="TextureRect" parent="Layout/PlayArea/PlayRoot/BottomArea/DiscardPile"]
+custom_minimum_size = Vector2(92, 124)
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DiscardCount" type="Label" parent="Layout/PlayArea/PlayRoot/BottomArea/DiscardPile"]
+text = "0"
+horizontal_alignment = 1
+
+[node name="DiscardLabel" type="Label" parent="Layout/PlayArea/PlayRoot/BottomArea/DiscardPile"]
+text = "WASTED"
+horizontal_alignment = 1
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+
+[node name="HeldCard" type="TextureRect" parent="Overlay"]
+visible = false
+expand_mode = 1
+stretch_mode = 5
+mouse_filter = 2
+
+[node name="StatusOverlay" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_gjsa1")
+
+[node name="Content" type="VBoxContainer" parent="StatusOverlay"]
+anchors_preset = 8
+offset_left = -260.0
+offset_top = -220.0
+offset_right = 260.0
+offset_bottom = 220.0
+size_flags_horizontal = 5
+size_flags_vertical = 5

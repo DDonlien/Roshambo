@@ -1,6 +1,5 @@
 import { GameStore } from './state';
 import { CARD_LENGTH, Card, GameState, InsertEdge, LevelIcon, RPS } from './types';
-import { toShopViewOffers, toSpecialCardViews } from './special-cards/registry';
 import { gsap } from 'gsap';
 
 type Lang = 'EN' | 'ZH' | 'ZH_TW' | 'JA';
@@ -43,6 +42,15 @@ const I18N = {
     BUY: 'Buy',
     PURCHASED: 'Purchased',
     SPECIAL_CARDS: 'Special Cards',
+    INVENTORY: 'Inventory',
+    GIFT_CARDS: 'Gift Cards',
+    PLAYMATS: 'Playmats',
+    SLEEVES: 'Sleeves',
+    USE: 'Use',
+    START_LEVEL: 'Start Level',
+    PREPARE_LEVEL: 'Prepare Level',
+    CHOOSE_ONE: 'Choose 1',
+    SKIP: 'Skip',
     FINAL_RUN_CLEAR: 'You cleared all 9 stages and 27 levels!',
     FINAL_CHIPS: 'Final Chips'
   },
@@ -75,6 +83,15 @@ const I18N = {
     BUY: '购买',
     PURCHASED: '已购买',
     SPECIAL_CARDS: '特殊牌',
+    INVENTORY: '库存',
+    GIFT_CARDS: 'Gift Card',
+    PLAYMATS: 'Playmat',
+    SLEEVES: 'Sleeve',
+    USE: '使用',
+    START_LEVEL: '开始本关',
+    PREPARE_LEVEL: '关前准备',
+    CHOOSE_ONE: '选择 1 个',
+    SKIP: '跳过',
     FINAL_RUN_CLEAR: '你已通关全部 9 大关与 27 个关卡！',
     FINAL_CHIPS: '最终筹码'
   },
@@ -107,6 +124,15 @@ const I18N = {
     BUY: '購買',
     PURCHASED: '已購買',
     SPECIAL_CARDS: '特殊牌',
+    INVENTORY: '庫存',
+    GIFT_CARDS: 'Gift Card',
+    PLAYMATS: 'Playmat',
+    SLEEVES: 'Sleeve',
+    USE: '使用',
+    START_LEVEL: '開始本關',
+    PREPARE_LEVEL: '關前準備',
+    CHOOSE_ONE: '選擇 1 個',
+    SKIP: '跳過',
     FINAL_RUN_CLEAR: '你已通關全部 9 大關與 27 個關卡！',
     FINAL_CHIPS: '最終籌碼'
   },
@@ -139,6 +165,15 @@ const I18N = {
     BUY: '購入',
     PURCHASED: '購入済み',
     SPECIAL_CARDS: '特殊カード',
+    INVENTORY: '所持品',
+    GIFT_CARDS: 'Gift Card',
+    PLAYMATS: 'Playmat',
+    SLEEVES: 'Sleeve',
+    USE: '使用',
+    START_LEVEL: 'この関を開始',
+    PREPARE_LEVEL: '開始前準備',
+    CHOOSE_ONE: '1つ選ぶ',
+    SKIP: 'スキップ',
     FINAL_RUN_CLEAR: '9 ステージ、27 レベルを制覇！',
     FINAL_CHIPS: '最終チップ'
   }
@@ -214,6 +249,19 @@ function getCardFullAsset(card: Card): string {
   return cardAssetMap[code] || `./Sketch/CardType=${code}.png`;
 }
 
+function hasFullCardAsset(card: Card): boolean {
+  const mapToDigit: Record<string, string> = {
+    ROCK: '4',
+    SCISSORS: '3',
+    PAPER: '1',
+    BLANK: '0',
+    TRICOLOR: '7'
+  };
+  const baseSymbols = card.isFlipped ? [...card.symbols].reverse() : card.symbols;
+  const code = baseSymbols.map((symbol) => mapToDigit[symbol] || '0').join('');
+  return Boolean(cardAssetMap[code]);
+}
+
 function hasTricolor(card: Card): boolean {
   return card.symbols.includes(RPS.TRICOLOR);
 }
@@ -251,7 +299,7 @@ function createCardElement(
   element.className = `${cardClassName(isHandCard)} ${orientation === 'horizontal' ? 'render-card-horizontal' : ''} ${extraClass}`.trim();
   element.style.setProperty('--card-block-count', String(card.symbols.length));
   
-  if ((isHandCard || extraClass.includes('modal-card')) && !hasTricolor(card)) {
+  if ((isHandCard || extraClass.includes('modal-card')) && !hasTricolor(card) && hasFullCardAsset(card)) {
     element.classList.add('full-asset');
     const image = document.createElement('img');
     image.className = 'card-full-image';
@@ -269,7 +317,7 @@ function createCardElement(
 }
 
 function createCardMarkup(card: Card): string {
-  if (hasTricolor(card)) {
+  if (hasTricolor(card) || !hasFullCardAsset(card)) {
     const blocks = card.symbols.map((symbol) => `<img class="card-block" src="${blockAsset(symbol)}">`).join('');
     return `
       <div class="render-card modal-card" style="--card-block-count:${card.symbols.length}">
@@ -300,6 +348,10 @@ function createSpecialCardMarkup(
   `;
 }
 
+function localizeText(base: string, i18n?: Partial<Record<Lang, string>>): string {
+  return i18n?.[currentLang] ?? i18n?.EN ?? base;
+}
+
 export class GameUI {
   private matrixWrapperElement: HTMLElement | null = null;
   private matrixElement: HTMLElement | null = null;
@@ -310,6 +362,7 @@ export class GameUI {
   private isAnimating: boolean = false;
   private lastWheelDirection: -1 | 0 | 1 = 0;
   private lastWheelAt = 0;
+  private deckSelectIndex = 0;
 
   constructor(private readonly store: GameStore, private readonly root: HTMLElement) {}
 
@@ -986,27 +1039,104 @@ export class GameUI {
     const container = document.getElementById('ui-special-cards');
     if (!container) return;
 
-    const cards = toSpecialCardViews(state.specialCards);
-    if (cards.length === 0) {
+    const sleeveDefinitions = this.store.getSleeveDefinitions();
+    const sleeves = state.sleeves
+      .map((card) => {
+        const definition = sleeveDefinitions.find((candidate) => candidate.id === card.definitionId);
+        return definition ? { ...card, definition } : null;
+      })
+      .filter((card): card is NonNullable<typeof card> => card !== null);
+    const giftCards = state.giftCards
+      .map((card) => {
+        const definition = this.store.getGiftCardDefinitionById(card.definitionId);
+        return definition ? { ...card, definition } : null;
+      })
+      .filter((card): card is NonNullable<typeof card> => card !== null);
+    const playmats = state.playmats
+      .map((card) => {
+        const definition = this.store.getPlaymatDefinitionById(card.definitionId);
+        return definition ? { ...card, definition } : null;
+      })
+      .filter((card): card is NonNullable<typeof card> => card !== null);
+
+    if (sleeves.length === 0 && giftCards.length === 0 && playmats.length === 0) {
       container.innerHTML = `
-        <div class="special-cards-header">${I18N[currentLang].SPECIAL_CARDS}</div>
-        <div class="special-card-empty">No Specials Yet</div>
+        <div class="special-cards-header">${I18N[currentLang].INVENTORY}</div>
+        <div class="special-card-empty">No Sleeves, Gift Cards or Playmats</div>
       `;
       return;
     }
 
     container.innerHTML = `
-      <div class="special-cards-header">${I18N[currentLang].SPECIAL_CARDS}</div>
-      <div class="special-cards-list">
-        ${cards.map((card) => createSpecialCardMarkup(
-          card.definition.name,
-          card.definition.shortName,
-          card.definition.description,
-          card.definition.accent,
-          'special-card-mini'
-        )).join('')}
+      <div class="special-cards-header">${I18N[currentLang].INVENTORY}</div>
+      <div class="inventory-section">
+        <div class="inventory-label">${I18N[currentLang].SLEEVES}</div>
+        <div class="special-cards-list">
+          ${sleeves.map((card) => createSpecialCardMarkup(
+            localizeText(card.definition.name, card.definition.nameI18n),
+            localizeText(card.definition.shortName, card.definition.shortNameI18n),
+            localizeText(card.definition.description, card.definition.descriptionI18n),
+            card.definition.accent,
+            'special-card-mini'
+          )).join('') || '<div class="special-card-empty mini">None</div>'}
+        </div>
+      </div>
+      <div class="inventory-section">
+        <div class="inventory-label">${I18N[currentLang].GIFT_CARDS}</div>
+        <div class="special-cards-list gift-cards-list">
+          ${giftCards.map((card) => `
+            <div class="gift-card-item">
+              ${createSpecialCardMarkup(
+                localizeText(card.definition.name, card.definition.nameI18n),
+                localizeText(card.definition.shortName, card.definition.shortNameI18n),
+                localizeText(card.definition.description, card.definition.descriptionI18n),
+                card.definition.accent,
+                'special-card-mini'
+              )}
+              <button class="giftcard-use-btn" data-giftcard-id="${card.instanceId}" ${state.status !== 'SHOP' ? 'disabled' : ''}>${I18N[currentLang].USE}</button>
+            </div>
+          `).join('') || '<div class="special-card-empty mini">None</div>'}
+        </div>
+      </div>
+      <div class="inventory-section">
+        <div class="inventory-label">${I18N[currentLang].PLAYMATS}${state.activePlaymatDefinitionId ? ' · ACTIVE' : ''}</div>
+        <div class="special-cards-list gift-cards-list">
+          ${playmats.map((card) => `
+            <div class="gift-card-item">
+              ${createSpecialCardMarkup(
+                localizeText(card.definition.name, card.definition.nameI18n),
+                localizeText(card.definition.shortName, card.definition.shortNameI18n),
+                localizeText(card.definition.description, card.definition.descriptionI18n),
+                card.definition.accent,
+                'special-card-mini'
+              )}
+              <button class="playmat-use-btn" data-playmat-id="${card.instanceId}" ${state.status !== 'PLAYING' || Boolean(state.activePlaymatDefinitionId) ? 'disabled' : ''}>${I18N[currentLang].USE}</button>
+            </div>
+          `).join('') || '<div class="special-card-empty mini">None</div>'}
+        </div>
       </div>
     `;
+
+    container.querySelectorAll('.giftcard-use-btn').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const giftCardId = button.getAttribute('data-giftcard-id');
+        if (!giftCardId) return;
+        if (this.store.useGiftCard(giftCardId)) {
+          this.render();
+        }
+      });
+    });
+    container.querySelectorAll('.playmat-use-btn').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const playmatId = button.getAttribute('data-playmat-id');
+        if (!playmatId) return;
+        if (this.store.usePlaymat(playmatId)) {
+          this.render();
+        }
+      });
+    });
   }
 
   private renderStatusOverlay(state: GameState): void {
@@ -1017,34 +1147,58 @@ export class GameUI {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay status-overlay';
 
+    if (state.status === 'HOME') {
+      overlay.innerHTML = `
+        <div class="modal-content home-screen">
+          <div class="home-logo">ROSHAMBO</div>
+          <div class="home-tagline">Roguelike Matrix Card Clash</div>
+          <button id="home-start-btn" class="status-button success">Start Game</button>
+        </div>
+      `;
+      this.root.appendChild(overlay);
+      overlay.querySelector('#home-start-btn')?.addEventListener('click', () => {
+        this.store.openDeckSelect();
+        this.render();
+      });
+      return;
+    }
+
     if (state.status === 'CHOOSE_DECK') {
       const decks = this.store.getDeckDefinitions();
-      const previewGroups = decks.map((deck) => {
-        const cards = this.store.getDeckPreviewCards(deck.id);
-        return `
-          <div class="deck-option" data-deck-id="${deck.id}">
-            <h3>${deck.name}</h3>
-            <div class="preview-cards">
-              ${cards.map((card) => createCardMarkup(card)).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
+      if (decks.length === 0) return;
+      this.deckSelectIndex = ((this.deckSelectIndex % decks.length) + decks.length) % decks.length;
+      const deck = decks[this.deckSelectIndex];
+      const cards = this.store.getDeckPreviewCards(deck.id);
 
       overlay.innerHTML = `
         <div class="modal-content deck-selector">
           <h1>${I18N[currentLang].CHOOSE_DECK}</h1>
-          <div class="deck-options">${previewGroups}</div>
+          <div class="deck-carousel">
+            <button class="deck-nav-btn" id="deck-prev-btn">◀</button>
+            <div class="deck-option single" data-deck-id="${deck.id}">
+              <h3>${deck.name}</h3>
+              <div class="preview-cards">
+                ${cards.map((card) => createCardMarkup(card)).join('')}
+              </div>
+              <div class="deck-page">${this.deckSelectIndex + 1} / ${decks.length}</div>
+              <button id="deck-confirm-btn" class="status-button success">${I18N[currentLang].CONTINUE}</button>
+            </div>
+            <button class="deck-nav-btn" id="deck-next-btn">▶</button>
+          </div>
         </div>
       `;
       this.root.appendChild(overlay);
-      overlay.querySelectorAll('.deck-option').forEach((option) => {
-        option.addEventListener('click', () => {
-          const deckId = option.getAttribute('data-deck-id');
-          if (!deckId) return;
-          this.store.chooseDeckById(deckId);
-          this.render();
-        });
+      overlay.querySelector('#deck-prev-btn')?.addEventListener('click', () => {
+        this.deckSelectIndex = (this.deckSelectIndex - 1 + decks.length) % decks.length;
+        this.render();
+      });
+      overlay.querySelector('#deck-next-btn')?.addEventListener('click', () => {
+        this.deckSelectIndex = (this.deckSelectIndex + 1) % decks.length;
+        this.render();
+      });
+      overlay.querySelector('#deck-confirm-btn')?.addEventListener('click', () => {
+        this.store.chooseDeckById(deck.id);
+        this.render();
       });
       return;
     }
@@ -1071,20 +1225,54 @@ export class GameUI {
     }
 
     if (state.status === 'SHOP') {
-      const offers = toShopViewOffers(state.shopOffers);
+      const offers = state.shopOffers.map((offer) => {
+        if (offer.kind === 'sleeve') {
+          const definition = this.store.getSleeveDefinitions().find((candidate) => candidate.id === offer.definitionId);
+          return definition ? {
+            offer,
+            label: offer.form === 'pack' ? 'Sleeve Pack' : 'Sleeve',
+            description: localizeText(definition.description, definition.descriptionI18n),
+            accent: definition.accent,
+            name: localizeText(definition.name, definition.nameI18n),
+            shortName: localizeText(definition.shortName, definition.shortNameI18n)
+          } : null;
+        }
+        if (offer.kind === 'giftcard') {
+          const definition = this.store.getGiftCardDefinitionById(offer.definitionId ?? '');
+          return definition ? {
+            offer,
+            label: offer.form === 'pack' ? 'Gift Pack' : 'Gift Card',
+            description: localizeText(definition.description, definition.descriptionI18n),
+            accent: definition.accent,
+            name: localizeText(definition.name, definition.nameI18n),
+            shortName: localizeText(definition.shortName, definition.shortNameI18n)
+          } : null;
+        }
+        if (offer.kind === 'playmat') {
+          const definition = this.store.getPlaymatDefinitionById(offer.definitionId ?? '');
+          return definition ? {
+            offer,
+            label: offer.form === 'pack' ? 'Playmat Pack' : 'Playmat',
+            description: localizeText(definition.description, definition.descriptionI18n),
+            accent: definition.accent,
+            name: localizeText(definition.name, definition.nameI18n),
+            shortName: localizeText(definition.shortName, definition.shortNameI18n)
+          } : null;
+        }
+        const card = offer.cardCode ? { id: `shop-${offer.offerId}`, symbols: offer.cardCode.toUpperCase().split('').map((digit) => ({ '0': RPS.BLANK, '1': RPS.PAPER, '3': RPS.SCISSORS, '4': RPS.ROCK, O: RPS.TRICOLOR, '7': RPS.TRICOLOR }[digit] ?? RPS.BLANK)) } : null;
+        return card ? { offer, label: offer.form === 'pack' ? 'Card Pack' : 'Card', card, description: offer.form === 'pack' ? `${offer.choices?.length ?? 0} choices, pick 1` : `Adds ${offer.cardCode} to your run deck`, accent: '#90e0ef', name: offer.cardCode ?? 'Card', shortName: 'Card' } : null;
+      }).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+      const openedPack = state.openedPackOfferId ? state.shopOffers.find((offer) => offer.offerId === state.openedPackOfferId) ?? null : null;
       overlay.innerHTML = `
         <div class="modal-content status-card shop-card">
           <h1 class="status-title gold">${I18N[currentLang].SHOP}</h1>
           <p class="status-copy">${I18N[currentLang].CHIPS}: ${state.chips}</p>
           <div class="shop-grid">
-            ${offers.map((offer) => `
+            ${offers.map(({ offer, label, description, accent, name, shortName, card }) => `
               <div class="shop-offer ${offer.purchased ? 'purchased' : ''}">
-                ${createSpecialCardMarkup(
-                  offer.definition.name,
-                  offer.definition.shortName,
-                  offer.definition.description,
-                  offer.definition.accent
-                )}
+                <div class="shop-offer-kind">${label}</div>
+                ${card ? `<div class="shop-card-preview">${createCardMarkup(card)}</div>` : createSpecialCardMarkup(name, shortName, description, accent)}
+                ${card ? `<div class="shop-card-caption">${description}</div>` : ''}
                 <button
                   class="status-button primary shop-buy-btn"
                   data-offer-id="${offer.offerId}"
@@ -1092,9 +1280,64 @@ export class GameUI {
                 >
                   ${offer.purchased ? I18N[currentLang].PURCHASED : `${I18N[currentLang].BUY} (${offer.cost})`}
                 </button>
+                ${offer.kind === 'giftcard' && offer.purchased && offer.definitionId ? `<button class="status-button shop-use-gift-btn" data-gift-definition-id="${offer.definitionId}">${I18N[currentLang].USE}</button>` : ''}
               </div>
             `).join('')}
           </div>
+          ${openedPack ? `
+              <div class="pack-picker">
+              <div class="pack-picker-title">${I18N[currentLang].CHOOSE_ONE}</div>
+              <div class="shop-grid">
+                ${(openedPack.choices ?? []).map((choice, index) => {
+                  if (choice.kind === 'card' && choice.cardCode) {
+                    const packCard: Card = { id: `pack-${index}`, symbols: choice.cardCode.toUpperCase().split('').map((digit) => ({ '0': RPS.BLANK, '1': RPS.PAPER, '3': RPS.SCISSORS, '4': RPS.ROCK, O: RPS.TRICOLOR, '7': RPS.TRICOLOR }[digit] ?? RPS.BLANK)) };
+                    return `
+                      <div class="shop-offer">
+                        <div class="shop-offer-kind">Card</div>
+                        <div class="shop-card-preview">${createCardMarkup(packCard)}</div>
+                        <button class="status-button primary pack-choice-btn" data-offer-id="${openedPack.offerId}" data-choice-index="${index}">Pick</button>
+                      </div>
+                    `;
+                  }
+                  if (choice.kind === 'sleeve' && choice.definitionId) {
+                    const definition = this.store.getSleeveDefinitions().find((candidate) => candidate.id === choice.definitionId);
+                    if (!definition) return '';
+                    return `
+                      <div class="shop-offer">
+                        <div class="shop-offer-kind">Sleeve</div>
+                        ${createSpecialCardMarkup(definition.name, definition.shortName, definition.description, definition.accent)}
+                        <button class="status-button primary pack-choice-btn" data-offer-id="${openedPack.offerId}" data-choice-index="${index}">Pick</button>
+                      </div>
+                    `;
+                  }
+                  if (choice.kind === 'giftcard' && choice.definitionId) {
+                    const definition = this.store.getGiftCardDefinitionById(choice.definitionId);
+                    if (!definition) return '';
+                    return `
+                      <div class="shop-offer">
+                        <div class="shop-offer-kind">Gift Card</div>
+                        ${createSpecialCardMarkup(localizeText(definition.name, definition.nameI18n), localizeText(definition.shortName, definition.shortNameI18n), localizeText(definition.description, definition.descriptionI18n), definition.accent)}
+                        <button class="status-button primary pack-choice-btn" data-offer-id="${openedPack.offerId}" data-choice-index="${index}">Pick</button>
+                      </div>
+                    `;
+                  }
+                  if (choice.kind === 'playmat' && choice.definitionId) {
+                    const definition = this.store.getPlaymatDefinitionById(choice.definitionId);
+                    if (!definition) return '';
+                    return `
+                      <div class="shop-offer">
+                        <div class="shop-offer-kind">Playmat</div>
+                        ${createSpecialCardMarkup(localizeText(definition.name, definition.nameI18n), localizeText(definition.shortName, definition.shortNameI18n), localizeText(definition.description, definition.descriptionI18n), definition.accent)}
+                        <button class="status-button primary pack-choice-btn" data-offer-id="${openedPack.offerId}" data-choice-index="${index}">Pick</button>
+                      </div>
+                    `;
+                  }
+                  return '';
+                }).join('')}
+              </div>
+              <button id="skip-pack-btn" class="status-button">${I18N[currentLang].SKIP}</button>
+            </div>
+          ` : ''}
           <button id="continue-btn" class="status-button success">${I18N[currentLang].CONTINUE}</button>
         </div>
       `;
@@ -1106,6 +1349,29 @@ export class GameUI {
           this.store.buyShopOffer(offerId);
           this.render();
         });
+      });
+      overlay.querySelectorAll('.shop-use-gift-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          const definitionId = button.getAttribute('data-gift-definition-id');
+          if (!definitionId) return;
+          const giftCard = state.giftCards.find((card) => card.definitionId === definitionId);
+          if (!giftCard) return;
+          this.store.useGiftCard(giftCard.instanceId);
+          this.render();
+        });
+      });
+      overlay.querySelectorAll('.pack-choice-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+          const offerId = button.getAttribute('data-offer-id');
+          const choiceIndex = Number(button.getAttribute('data-choice-index'));
+          if (!offerId || !Number.isFinite(choiceIndex)) return;
+          this.store.choosePackChoice(offerId, choiceIndex);
+          this.render();
+        });
+      });
+      overlay.querySelector('#skip-pack-btn')?.addEventListener('click', () => {
+        this.store.skipOpenedPack();
+        this.render();
       });
       overlay.querySelector('#continue-btn')?.addEventListener('click', () => {
         this.store.continueAfterShop();

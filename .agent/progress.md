@@ -12,6 +12,8 @@
 - 新流程：ROUND_REWARD -> SHOP -> 下一关/通关
 - 2026-04-16T00:00:00+08:00 添加子工程 agent 规范：`ts/agent.md`（TS+GSAP）与 `godot/agent.md`（Godot C#）
 - 2026-04-16T00:10:00+08:00 优化滚轮翻转交互：持续同向滚动不重复翻转，需换向或停 0.5s 再触发
+- 2026-04-17T00:55:00+08:00 `ts/` 接入卡套/礼品卡主链：商店可购买 Special/Sleeve/Gift Card，卡套被动生效，礼品卡进入库存并可在对局中使用；同步补充覆盖清单与 requirement
+- 2026-04-17T01:25:00+08:00 `ts/` 商店重构：移除 Special 出售，改为 sleeve/gift card/card 三类；支持 direct 与 pack（2/3 选 1），新增 shopdefinition 与永久牌库模板
 
 ## 阻塞项
 - 暂无
