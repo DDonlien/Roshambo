@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Roshambo.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e073a501c3151c23f472f00d5112578ad8defcf")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c8970b2fde3c1d3e3183cf51ac1e933c1b844dc7")]
 [assembly: System.Reflection.AssemblyProductAttribute("Roshambo.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Roshambo.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
